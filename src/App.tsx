@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react"
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
+import { HashRouter, Routes, Route, useLocation } from "react-router-dom"
 import { useGSAP } from "@gsap/react"
 import { gsap } from "./animations/gsap"
 import { primeScrollTriggers } from "./animations/motion"
@@ -129,15 +129,15 @@ export default function App() {
   return (
     <AuthProvider>
       <FavoritesProvider>
-        <SiteContentProvider>
-          <BrowserRouter>
+<SiteContentProvider>
+        <HashRouter>
             <ScrollProgress />
             <CustomCursor />
             <Routes>
               <Route path="/admin/*" element={<AdminRoutes />} />
               <Route path="/*" element={<Layout />} />
             </Routes>
-          </BrowserRouter>
+          </HashRouter>
         </SiteContentProvider>
       </FavoritesProvider>
     </AuthProvider>
