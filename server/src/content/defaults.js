@@ -23,6 +23,8 @@ export const DEFAULT_CONTENT = {
       "Over 250 curated residences in Jeddah's most sought-after addresses.",
     heroImage:
       "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=1920&h=1200&fit=crop&auto=format",
+    // Provider asset id for the managed hero image ("" when using a plain URL).
+    heroImagePublicId: "",
     heroImageAlt: "A modern coastal villa at dusk on the Jeddah waterfront",
     showcaseEyebrow: "Explore Exceptional Homes",
     showcaseHint: "Scroll or drag to explore",
@@ -112,6 +114,7 @@ export const DEFAULT_CONTENT = {
       "Our team combines deep local knowledge with international perspectives, allowing us to serve clients from across Saudi Arabia and the world with the same precision and discretion.",
     image:
       "https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=1920&h=700&fit=crop&auto=format",
+    imagePublicId: "",
     imageAlt: "Estate office architecture",
     valuesEyebrow: "Our Values",
     values: [
@@ -142,7 +145,11 @@ export const DEFAULT_CONTENT = {
     heading: "Let's talk",
     officesEyebrow: "Offices",
     officeName: "Jeddah HQ",
-    addressLines: ["Al Shati District", "King Abdulaziz Road", "Jeddah, Saudi Arabia 23434"],
+    addressLines: [
+      "Al Shati District",
+      "King Abdulaziz Road",
+      "Jeddah, Saudi Arabia 23434",
+    ],
     directEyebrow: "Direct",
     salesLabel: "Sales",
     salesPhone: "+966 12 345 6789",

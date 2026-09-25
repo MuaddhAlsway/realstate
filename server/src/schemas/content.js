@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { CONTENT_SECTIONS } from "../content/defaults.js"
+import { getMediaCloudName } from "../services/mediaService.js"
 
 /**
  * Per-section content validation (Phase 09 — Admin CMS).
@@ -9,10 +10,16 @@ import { CONTENT_SECTIONS } from "../content/defaults.js"
  * item schemas. `.strict()` rejects unknown keys (e.g. a typo'd `heroTitle`)
  * so the CMS can never be polluted by arbitrary fields. The public read
  * path is bounded by the same sets as the admin write path.
+ *
+ * Phase 10 — managed imagery: each image URL field carries a sibling
+ * `…PublicId` field recording the provider asset id so a replaced CMS image
+ * can be deleted from the provider. When a PublicId is set, its URL must be
+ * hosted on this app's Cloudinary cloud (legacy plain URLs stay valid).
  */
 
 const text = (max = 10_000) => z.string().trim().max(max)
 const url = () => text(2_000)
+const mediaRef = () => z.string().trim().max(512).optional()
 const link = () => z.object({ label: text(200), href: text(500) })
 const numbered = () =>
   z.object({
@@ -30,6 +37,37 @@ const stat = () =>
     decimals: z.number().int().min(0).max(4),
   })
 
+/** Lazy so the media seam (tests) or env (production) decides the host. */
+const cloudinaryImageBase = () => {
+  const cloudName = getMediaCloudName()
+  return cloudName
+    ? `https://res.cloudinary.com/${cloudName}/image/upload/`
+    : null
+}
+
+/**
+ * A section object may set provider refs only for image fields whose URL is
+ * hosted on this app's Cloudinary cloud. Lenient when no cloud is configured
+ * (plain legacy URLs stay valid in dev without the provider).
+ */
+function managedImageRefine(section) {
+  for (const [key, value] of Object.entries(section)) {
+    if (!/PublicId$/i.test(key)) continue
+    if (typeof value !== "string" || !value.trim()) continue
+    const urlKey = key.replace(/PublicId$/i, "")
+    const imageUrl = section[urlKey]
+    const base = cloudinaryImageBase()
+    if (
+      typeof imageUrl !== "string" ||
+      base === null ||
+      !imageUrl.startsWith(base)
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
 export const CONTENT_SCHEMAS = Object.freeze({
   home: z
     .object({
@@ -39,6 +77,7 @@ export const CONTENT_SCHEMAS = Object.freeze({
       heroLine3: text(300),
       heroDescription: text(2_000),
       heroImage: url(),
+      heroImagePublicId: mediaRef(),
       heroImageAlt: text(500),
       showcaseEyebrow: text(300),
       showcaseHint: text(300),
@@ -57,7 +96,11 @@ export const CONTENT_SCHEMAS = Object.freeze({
       ctaPrimaryLabel: text(200),
       ctaSecondaryLabel: text(200),
     })
-    .strict(),
+    .strict()
+    .refine(managedImageRefine, {
+      message:
+        "managed image URLs must be hosted on this application's media provider",
+    }),
   about: z
     .object({
       eyebrow: text(300),
@@ -66,6 +109,7 @@ export const CONTENT_SCHEMAS = Object.freeze({
       body1: text(3_000),
       body2: text(3_000),
       image: url(),
+      imagePublicId: mediaRef(),
       imageAlt: text(500),
       valuesEyebrow: text(300),
       values: z.array(numbered()).max(12),
@@ -74,7 +118,11 @@ export const CONTENT_SCHEMAS = Object.freeze({
       ctaPrimaryLabel: text(200),
       ctaSecondaryLabel: text(200),
     })
-    .strict(),
+    .strict()
+    .refine(managedImageRefine, {
+      message:
+        "managed image URLs must be hosted on this application's media provider",
+    }),
   contact: z
     .object({
       eyebrow: text(300),

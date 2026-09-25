@@ -135,14 +135,24 @@ const propertyAmenities = data.properties.flatMap((p) =>
 )
 
 // Phase 05 — two demo accounts with real Argon2 (argon2id) hashes so the
-// auth API works end-to-end from a fresh seed. Credentials below are
-// DEVELOPMENT-ONLY; replace before any production rollout.
+// auth API works end-to-end from a fresh seed. Phase 10 — the ADMIN password
+// comes from SEED_ADMIN_PASSWORD (production requires it; development falls
+// back to a clearly-named dev-only default). Run `pnpm db:seed` to apply.
+import { SEED_ADMIN_PASSWORD } from "../config/env.js"
+
+if (!SEED_ADMIN_PASSWORD) {
+  console.error(
+    "Seed requires SEED_ADMIN_PASSWORD in production (set it explicitly, never commit it).",
+  )
+  process.exit(1)
+}
+
 const DEMO_ACCOUNTS = [
   {
     id: "user:admin",
     name: "Site Administrator",
     email: "admin@estate.sa",
-    password: "Estate-Admin-2026!",
+    password: SEED_ADMIN_PASSWORD,
     role: "ADMIN",
   },
   {

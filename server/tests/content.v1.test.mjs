@@ -3,6 +3,7 @@ import request from "supertest"
 import { randomUUID } from "node:crypto"
 import { app, adminToken, bearer, cleanAuthUsers } from "./helpers.mjs"
 import { DEFAULT_CONTENT } from "../src/content/defaults.js"
+import { setMediaClientForTests } from "../src/services/mediaService.js"
 
 /**
  * Phase 09 — public CMS reads (/api/v1/content) + admin CMS writes
@@ -29,7 +30,11 @@ beforeAll(async () => {
   token = await adminToken()
   const reg = await request(app)
     .post("/api/v1/auth/register")
-    .send({ name: "Content Test User", email: uniqueEmail("user"), password: "ContentTest-123" })
+    .send({
+      name: "Content Test User",
+      email: uniqueEmail("user"),
+      password: "ContentTest-123",
+    })
   expect(reg.status).toBe(201)
   userToken = reg.body.data.accessToken
 })
@@ -118,8 +123,9 @@ describe("PUT /api/v1/admin/content/:section (admin writes)", () => {
   })
 
   it("403s for a non-admin token", async () => {
-    const res = await putSection("seo", DEFAULT_CONTENT.seo, userToken)
-      .expect(403)
+    const res = await putSection("seo", DEFAULT_CONTENT.seo, userToken).expect(
+      403,
+    )
     expect(res.body.error.code).toBe("FORBIDDEN")
   })
 
@@ -128,5 +134,86 @@ describe("PUT /api/v1/admin/content/:section (admin writes)", () => {
       .put(`${ADMIN_CONTENT}/seo`)
       .send(DEFAULT_CONTENT.seo)
       .expect(401)
+  })
+})
+
+describe("Phase 10 — CMS managed media references", () => {
+  const managedUrl = (id) =>
+    `https://res.cloudinary.com/test-cloud/image/upload/v1/${id}`
+  let client
+
+  beforeAll(async () => {
+    client = {
+      calls: { destroy: [], removeTag: [] },
+      cloudName: "test-cloud",
+      apiKey: "test-key",
+      sign: () => "sig-test-only",
+      destroy: async (publicId) => {
+        client.calls.destroy.push(publicId)
+        return { result: "ok" }
+      },
+      removeTag: async () => ({ result: "ok" }),
+      destroyMany: async () => ({}),
+      listPending: async () => [],
+    }
+    setMediaClientForTests(client)
+  })
+
+  afterAll(async () => {
+    // Restore the sections this suite edited so the seed stays pristine.
+    await putSection("home", DEFAULT_CONTENT.home, token).expect(200)
+    await putSection("about", DEFAULT_CONTENT.about, token).expect(200)
+    setMediaClientForTests(null)
+  })
+
+  it("stores a provider ref on home but never exposes it publicly", async () => {
+    const managed = {
+      ...DEFAULT_CONTENT.home,
+      heroImage: managedUrl("estate/cms/hero"),
+      heroImagePublicId: "estate/cms/hero",
+    }
+    const saved = await putSection("home", managed, token).expect(200)
+    // The admin response is stripped too (refs are private).
+    expect(saved.body.data.heroImagePublicId).toBeUndefined()
+    expect(saved.body.data.heroImage).toBe(managedUrl("estate/cms/hero"))
+
+    const pub = await request(app).get(`${CONTENT}/home`).expect(200)
+    expect(pub.body.data.heroImagePublicId).toBeUndefined()
+    expect(pub.body.data.heroImage).toBe(managedUrl("estate/cms/hero"))
+  })
+
+  it("destroys the retired managed asset when a CMS image is replaced", async () => {
+    await putSection(
+      "about",
+      {
+        ...DEFAULT_CONTENT.about,
+        image: managedUrl("estate/cms/about-old"),
+        imagePublicId: "estate/cms/about-old",
+      },
+      token,
+    ).expect(200)
+
+    const destroysBefore = client.calls.destroy.length
+    // Replacing with a plain URL retires the managed asset.
+    await putSection("about", DEFAULT_CONTENT.about, token).expect(200)
+    expect(client.calls.destroy).toContain("estate/cms/about-old")
+    expect(client.calls.destroy.length).toBeGreaterThan(destroysBefore)
+
+    const pub = await request(app).get(`${CONTENT}/about`).expect(200)
+    expect(pub.body.data.image).toBe(DEFAULT_CONTENT.about.image)
+    expect(pub.body.data.imagePublicId).toBeUndefined()
+  })
+
+  it("rejects a managed ref whose URL is not on the provider host", async () => {
+    const res = await putSection(
+      "home",
+      {
+        ...DEFAULT_CONTENT.home,
+        heroImage: "https://evil.example.com/x.jpg",
+        heroImagePublicId: "estate/cms/evil",
+      },
+      token,
+    ).expect(422)
+    expect(res.body.error.code).toBe("VALIDATION_ERROR")
   })
 })

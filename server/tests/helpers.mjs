@@ -26,9 +26,11 @@ export function uniqueSlug(prefix = "api-test") {
 // Phase 05: property mutations require an authenticated AGENT/ADMIN. The
 // test database is freshly seeded with the demo accounts (server/src/db/
 // seed.js) — the admin credentials below match its constants, and logging in
-// through the real /login endpoint keeps the suite honest.
+// through the real /login endpoint keeps the suite honest. Phase 10: the
+// seed reads the admin password from SEED_ADMIN_PASSWORD (dev/test fall back
+// to the fixture below; production requires an explicit value).
 export const ADMIN_EMAIL = "admin@estate.sa"
-export const ADMIN_PASSWORD = "Estate-Admin-2026!"
+export const ADMIN_PASSWORD = "Estate-Dev-Admin-DevOnly!"
 
 let adminTokenPromise = null
 
