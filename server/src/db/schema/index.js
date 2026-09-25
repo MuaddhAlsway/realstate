@@ -9,6 +9,7 @@ import {
   date,
   time,
   doublePrecision,
+  jsonb,
   primaryKey,
   index,
   uniqueIndex,
@@ -302,6 +303,31 @@ export const refreshTokens = pgTable(
     uniqueIndex("refresh_tokens_hash_key").on(t.tokenHash),
     index("refresh_tokens_user_idx").on(t.userId),
     index("refresh_tokens_expires_idx").on(t.expiresAt),
+  ],
+)
+
+// ── site_content (CMS: admin-editable website content) ───────────────────
+// A section + key + JSONB value row. Any JSON value is allowed (string,
+// number, array, object) but the write path validates whole sections through
+// per-section Zod schemas so only known keys/fields can ever be stored —
+// never arbitrary columns or executable content, and never secrets.
+export const siteContent = pgTable(
+  "site_content",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    section: text("section").notNull(),
+    key: text("key").notNull(),
+    value: jsonb("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("site_content_section_key_key").on(t.section, t.key),
+    index("site_content_section_idx").on(t.section),
   ],
 )
 

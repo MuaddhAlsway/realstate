@@ -11,8 +11,10 @@ import {
   properties as propertyTable,
   propertyImages as propertyImagesTable,
   propertyAmenities as propertyAmenitiesTable,
+  siteContent as siteContentTable,
 } from "./schema/index.js"
 import { hashPassword } from "../auth/password.js"
+import { DEFAULT_CONTENT, CONTENT_SECTIONS } from "../content/defaults.js"
 
 /**
  * Development seed: replays the existing design dataset
@@ -194,11 +196,26 @@ try {
       .insert(propertyAmenitiesTable)
       .values(propertyAmenities)
       .onConflictDoNothing()
+    // Phase 09 — CMS: seed the shipped marketing copy as the first
+    // publishable content so local/test databases render the original site.
+    await tx
+      .insert(siteContentTable)
+      .values(
+        CONTENT_SECTIONS.flatMap((section) =>
+          Object.entries(DEFAULT_CONTENT[section]).map(([key, value]) => ({
+            section,
+            key,
+            value,
+          })),
+        ),
+      )
+      .onConflictDoNothing()
   })
   console.log(
     `seed ok: ${neighborhoods.length} neighborhoods, ${agents.length} agents, ` +
       `${properties.length} properties, ${amenities.length} amenities, ` +
-      `${propertyImages.length} images, ${propertyAmenities.length} links`,
+      `${propertyImages.length} images, ${propertyAmenities.length} links, ` +
+      `${CONTENT_SECTIONS.length} content sections`,
   )
 } catch (err) {
   console.error("seed failed — transaction rolled back:", err)

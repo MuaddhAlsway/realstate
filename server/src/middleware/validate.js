@@ -14,7 +14,7 @@ import { assertNonEmptyPatch } from "../schemas/property.js"
  * a malformed list request from a malformed body.
  */
 
-function describeIssues(issues) {
+export function describeIssues(issues) {
   return (
     issues
       .map((issue) =>

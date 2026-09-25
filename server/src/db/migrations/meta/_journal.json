@@ -8,6 +8,13 @@
       "when": 1790323710576,
       "tag": "0000_happy_silver_centurion",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790345415373,
+      "tag": "0001_left_sasquatch",
+      "breakpoints": true
     }
   ]
 }

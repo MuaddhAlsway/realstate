@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, lte, or, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import * as schema from "../db/schema/index.js"
 import { HttpError } from "../errors/index.js"
@@ -10,15 +10,13 @@ import { translateDatabaseError } from "../errors/pg.js"
  * for the v1 API. Controllers translate HTTP → service calls and serialize
  * results; they never build SQL or touch the database directly.
  *
- * Transaction note: Phase 03 mutates only the `properties` table (single
- * row writes), so plain queries are atomic on their own — a transaction
- * wrapper would add ceremony with zero benefit today. Transactions become
- * necessary in a later phase when create/update accept images + amenity
- * associations as a unit (property + property_images +
- * property_amenities must all succeed or roll back together).
+ * Transaction note: Phase 09 create/update accept images + amenity names
+ * as a unit, so those mutations run inside a transaction — the property
+ * row plus its property_images + property_amenities associations all
+ * succeed or roll back together.
  */
 
-const { properties } = schema
+const { properties, amenities, propertyImages, propertyAmenities } = schema
 
 const NULLABLE = new Set([
   "description",
@@ -30,6 +28,10 @@ const NULLABLE = new Set([
   "agentId",
   "neighborhoodId",
 ])
+
+// Keys that are handled transactionally as relational assets (not columns
+// on the properties table itself).
+const ASSET_KEYS = new Set(["images", "amenities"])
 
 function requireDb() {
   const db = getDb()
@@ -134,11 +136,82 @@ function buildCreateValues(input) {
 function buildPatchValues(input) {
   const patch = {}
   for (const key of Object.keys(input)) {
-    if (key === "id") continue
+    if (key === "id" || ASSET_KEYS.has(key)) continue
     patch[key] = NULLABLE.has(key) ? (input[key] ?? null) : input[key]
   }
   patch.updatedAt = new Date()
   return patch
+}
+
+// ── Phase 09: transactional images + amenity associations ──────────────
+
+/** Reject input that would violate the database's one-cover constraint. */
+function assertAtMostOneCover(images) {
+  if (images.filter((img) => img.isCover === true).length > 1) {
+    throw new HttpError(
+      "At most one image can be marked as the cover",
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+    )
+  }
+}
+
+/**
+ * Normalize editor-provided images for storage: default `displayOrder` to
+ * the array index and `isCover` to the first image when none is flagged
+ * (mirrors how the seed data is shaped).
+ */
+function applyImageDefaults(images) {
+  assertAtMostOneCover(images)
+  const hasCover = images.some((img) => img.isCover === true)
+  return images.map((img, index) => ({
+    url: img.url,
+    publicId: null,
+    altText: img.altText ?? null,
+    displayOrder: img.displayOrder ?? index,
+    isCover: hasCover ? (img.isCover === true) : index === 0,
+  }))
+}
+
+/**
+ * Resolve amenity names to amenity ids inside a transaction: insert each
+ * new name (unique constraint → ON CONFLICT DO NOTHING), then read ids.
+ */
+async function txResolveAmenities(tx, names) {
+  await tx.insert(amenities).values(names.map((name) => ({ name }))).onConflictDoNothing()
+  const rows = await tx
+    .select({ id: amenities.id })
+    .from(amenities)
+    .where(inArray(amenities.name, names))
+  return rows.map((row) => row.id)
+}
+
+async function txReplaceAmenities(tx, propertyId, names) {
+  await tx
+    .delete(propertyAmenities)
+    .where(eq(propertyAmenities.propertyId, propertyId))
+  const ids = await txResolveAmenities(tx, names)
+  if (ids.length === 0) return
+  await tx
+    .insert(propertyAmenities)
+    .values(ids.map((amenityId) => ({ propertyId, amenityId })))
+    .onConflictDoNothing()
+}
+
+async function txReplaceImages(tx, propertyId, images) {
+  await tx.delete(propertyImages).where(eq(propertyImages.propertyId, propertyId))
+  const resolved = applyImageDefaults(images)
+  if (resolved.length === 0) return
+  await tx.insert(propertyImages).values(
+    resolved.map((img) => ({
+      propertyId,
+      url: img.url,
+      publicId: img.publicId,
+      altText: img.altText,
+      displayOrder: img.displayOrder,
+      isCover: img.isCover,
+    })),
+  )
 }
 
 // ── Phase 04: list query compilation ─────────────────────────────────────
@@ -197,6 +270,9 @@ function buildPropertyQuery(query) {
   if (query.minBathrooms)
     conditions.push(gte(properties.bathrooms, query.minBathrooms))
   if (query.search) conditions.push(buildSearchCondition(query.search))
+  // Phase 09 — admin scope: status filtering is reserved for management
+  // lists; the public catalog never receives a `status` query.
+  if (query.status) conditions.push(eq(properties.status, query.status))
 
   return {
     where: conditions.length ? and(...conditions) : undefined,
@@ -237,6 +313,39 @@ export async function listProperties(query = {}) {
   }
 }
 
+/**
+ * Admin management list (Phase 09): every status, status/sort/search
+ * filters, and a larger page size than the public catalog. Uses the same
+ * compiled `where` for the count and the rows so totals stay consistent.
+ */
+export async function listAdminProperties(query = {}) {
+  const db = requireDb()
+  const limit = Math.min(Math.max(query.limit ?? 50, 1), 100)
+  const { where, orderBy } = buildPropertyQuery(query)
+
+  const [rows, totals] = await Promise.all([
+    run(() =>
+      db.query.properties.findMany({
+        where,
+        orderBy,
+        limit,
+        offset: (Math.max(query.page ?? 1, 1) - 1) * limit,
+        with: listRelationColumns,
+      }),
+    ),
+    run(() => db.select({ n: count() }).from(properties).where(where)),
+  ])
+
+  const total = totals[0]?.n ?? 0
+  return {
+    items: rows,
+    total,
+    page: query.page ?? 1,
+    limit,
+    totalPages: total === 0 ? 0 : Math.max(1, Math.ceil(total / limit)),
+  }
+}
+
 export async function getPropertyById(id) {
   const db = requireDb()
   const row = await run(() =>
@@ -254,15 +363,29 @@ export async function getPropertyById(id) {
   return row
 }
 
+/**
+ * Create a property plus its images and amenity associations in one
+ * transaction — any failure rolls the whole asset bundle back.
+ */
 export async function createProperty(input) {
   const db = requireDb()
-  const [created] = await run(() =>
-    db.insert(properties)
-      .values(buildCreateValues(input))
-      .returning({ id: properties.id }),
+  const propertyId = await run(() =>
+    db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(properties)
+        .values(buildCreateValues(input))
+        .returning({ id: properties.id })
+      if (input.amenities?.length) {
+        await txReplaceAmenities(tx, created.id, input.amenities)
+      }
+      if (input.images?.length) {
+        await txReplaceImages(tx, created.id, input.images)
+      }
+      return created.id
+    }),
   )
   // Re-read with relations instead of hand-assembling the response row.
-  return getPropertyById(created.id)
+  return getPropertyById(propertyId)
 }
 
 export async function updateProperty(id, patch) {
@@ -281,9 +404,18 @@ export async function updateProperty(id, patch) {
     )
 
   await run(() =>
-    db.update(properties)
-      .set(buildPatchValues(patch))
-      .where(eq(properties.id, id)),
+    db.transaction(async (tx) => {
+      await tx
+        .update(properties)
+        .set(buildPatchValues(patch))
+        .where(eq(properties.id, id))
+      if (Array.isArray(patch.images)) {
+        await txReplaceImages(tx, id, patch.images)
+      }
+      if (Array.isArray(patch.amenities)) {
+        await txReplaceAmenities(tx, id, patch.amenities)
+      }
+    }),
   )
   return getPropertyById(id)
 }

@@ -47,6 +47,27 @@ export const createPropertySchema = z.object({
   featured: z.boolean().optional(), // DB default: false
   agentId: uuid().nullish(),
   neighborhoodId: uuid().nullish(),
+  // Phase 09 — admin property management: images + amenity names are written
+  // transactionally with the property row (service layer responsibility).
+  // `amenities` are NAMES which get resolved/upserted into the amenities
+  // table; `images` replace the property's existing image set.
+  images: z
+    .array(
+      z
+        .object({
+          url: z.string().trim().min(1, "image url is required").max(2_000),
+          altText: z.string().trim().max(500).nullish(),
+          displayOrder: z.number().int().min(0).optional(),
+          isCover: z.boolean().optional(),
+        })
+        .strict(),
+    )
+    .max(30, "at most 30 images per property")
+    .optional(),
+  amenities: z
+    .array(z.string().trim().min(1).max(80, "amenity names are truncated"))
+    .max(40, "at most 40 amenities per property")
+    .optional(),
 })
 
 export const updatePropertySchema = createPropertySchema.partial()

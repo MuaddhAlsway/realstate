@@ -7,20 +7,50 @@ import { app, cleanAuthUsers, getTestDb, bearer } from "./helpers.mjs"
  * Phase 06 — /api/v1/favorites: the signed-in user's saved properties.
  *
  * Runs against the isolated estate_test database only. Favorites live on a
- * throwaway account (`fav-test-*` email family); rows cascade away when the
- * user is deleted, and the suite never mutates seeded properties.
+ * throwaway account (`fav-test-*` email family). The suite provisions its own
+ * agent (seeded directly, like the viewings suite) and two `fav-test-*`
+ * properties so saved rows never alias fixtures that concurrent suites create
+ * or delete. Cleanup deletes the properties (favorites cascade) plus the
+ * `fav-test-*` accounts.
  */
 
 const AUTH = "/api/v1/auth"
 const URL = "/api/v1/favorites"
 const PROPERTIES = "/api/v1/properties"
 
-const uniqueEmail = () => `fav-test-${randomUUID().slice(0, 8)}@estate.test`
+const uniqueEmail = (tag = "") =>
+  `fav-test-${tag}${randomUUID().slice(0, 8)}@estate.test`
 
 let token
 let seededPropertyIds = []
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function createAgent(email) {
+  const db = getTestDb()
+  const { users, agents } = await import("../src/db/schema/index.js")
+  const { hashPassword } = await import("../src/auth/password.js")
+  const password = "AgentPass-123"
+  const inserted = await db
+    .insert(users)
+    .values({
+      name: "Favorites Test Agent",
+      email,
+      passwordHash: await hashPassword(password),
+      role: "AGENT",
+    })
+    .returning({ id: users.id })
+  await db
+    .insert(agents)
+    .values({
+      userId: inserted[0].id,
+      name: "Favorites Test Agent",
+      email: email.toLowerCase(),
+      role: "AGENT",
+    })
+    .onConflictDoNothing()
+  return { id: inserted[0].id, email, password }
+}
 
 beforeAll(async () => {
   const res = await request(app).post(`${AUTH}/register`).send({
@@ -31,18 +61,45 @@ beforeAll(async () => {
   expect(res.status).toBe(201)
   token = res.body.data.accessToken
 
-  // Anchor on seed properties (never the concurrent suites' fixtures).
-  const list = await request(app).get(PROPERTIES)
-  seededPropertyIds = list.body.data
-    .filter(
-      (p) =>
-        !p.slug.startsWith("api-test-") &&
-        !p.slug.startsWith("query-test-") &&
-        !p.slug.startsWith("auth-test-") &&
-        !p.slug.startsWith("fav-test-"),
-    )
-    .slice(0, 2)
-    .map((p) => p.id)
+  // Own throwaway listing so no concurrent suite can remove it mid-run.
+  const agent = await createAgent(uniqueEmail("agent"))
+  const aLogin = await request(app)
+    .post(`${AUTH}/login`)
+    .send({ email: agent.email, password: agent.password })
+  expect(aLogin.status).toBe(200)
+  const aToken = aLogin.body.data.accessToken
+
+  const db = getTestDb()
+  const { users } = await import("../src/db/schema/index.js")
+  const { eq } = await import("drizzle-orm")
+  const agentLink = await db.query.users.findFirst({
+    where: eq(users.id, agent.id),
+    columns: { id: true },
+    with: { agent: { columns: { id: true } } },
+  })
+
+  for (let i = 0; i < 2; i++) {
+    const created = await request(app)
+      .post(PROPERTIES)
+      .set(bearer(aToken))
+      .send({
+        title: `Favorites Test Villa ${i}`,
+        slug: `fav-test-${randomUUID().slice(0, 8)}`,
+        propertyType: "VILLA",
+        price: 2400000,
+        city: "Jeddah",
+        district: "Al Shati",
+        bedrooms: 5,
+        bathrooms: 4,
+        description: "Created by the favorites suite.",
+        agentId: agentLink.agent.id,
+      })
+    expect(created.status).toBe(201)
+    seededPropertyIds.push(created.body.data.id)
+  }
+
+  // Guarantee distinct savedAt timestamps when the ordering test saves later.
+  await sleep(20)
 })
 
 afterAll(async () => {
