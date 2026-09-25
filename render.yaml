@@ -1,0 +1,71 @@
+# Render Blueprint — Estate full-stack deployment (GitHub → Render → Neon)
+#
+# Two services:
+#   1. backend   : Express REST API (Node.js Web Service), health at /api/health
+#   2. frontend  : React/Vite SPA (Static Site) with SPA rewrite to index.html
+#
+# Deploy order: create the BACKEND first, set its secrets, confirm
+# GET https://<backend>/api/health returns 200, then create the FRONTEND and
+# set its VITE_API_URL to the backend URL (no /api/v1 suffix — the app adds it).
+# Finally set the backend CORS_ORIGINS to the frontend URL.
+#
+# Secrets (DATABASE_URL, JWT_SECRET, CORS_ORIGINS, VITE_API_URL) use
+# `sync: false` — set their real values in the Render Dashboard, never commit
+# them here. PORT is supplied automatically by Render; do not hardcode it.
+
+services:
+  # ── Backend: Express REST API ────────────────────────────────────────────
+  - type: web
+    name: estate-api
+    runtime: node
+    plan: free
+    region: ohio
+    branch: main
+    autoDeploy: true
+    rootDir: .
+    healthCheckPath: /api/health
+    buildCommand: pnpm install --frozen-lockfile
+    startCommand: node server/index.js
+    envVars:
+      - key: SKIP_INSTALL_DEPS
+        value: "true"
+      - key: NODE_ENV
+        value: production
+      - key: APP_NAME
+        value: estate-api
+      - key: API_VERSION
+        value: v1
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  # ── Frontend: React/Vite SPA ─────────────────────────────────────────────
+  - type: web
+    name: estate-frontend
+    runtime: static
+    plan: free
+    region: ohio
+    branch: main
+    autoDeploy: true
+    rootDir: .
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
+    envVars:
+      - key: SKIP_INSTALL_DEPS
+        value: "true"
+      - key: VITE_API_URL
+        sync: false

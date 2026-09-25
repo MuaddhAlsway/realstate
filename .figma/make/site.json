@@ -1,0 +1,10 @@
+{
+  "description": "This intuitive web application streamlines project management by automating task creation and organization, enhancing productivity for teams and individuals.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

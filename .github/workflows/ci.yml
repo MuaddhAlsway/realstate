@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: typecheck, tests, build
+    runs-on: ubuntu-latest
+    env:
+      # Backend tests run against an isolated `estate_test` database derived
+      # from this URL (server/src/config/test-db.js swaps the database name),
+      # so the production database is never touched. Set this secret on the
+      # GitHub repo: Settings → Secrets and variables → Actions.
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Prepare test database
+        if: env.DATABASE_URL != ''
+        run: pnpm db:test:prepare
+
+      - name: Run backend tests
+        if: env.DATABASE_URL != ''
+        run: pnpm test
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Warn when DATABASE_URL secret is missing
+        if: env.DATABASE_URL == ''
+        run: echo "::warning::DATABASE_URL secret not configured — backend test & test-db steps were skipped."

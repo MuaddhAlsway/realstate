@@ -1,0 +1,402 @@
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,300;0,6..96,400;0,6..96,500;0,6..96,700;1,6..96,300;1,6..96,400;1,6..96,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
+
+@import 'tailwindcss';
+
+@theme inline {
+  --font-display: 'Bodoni Moda', Georgia, serif;
+  --font-sans: 'Outfit', system-ui, sans-serif;
+
+  /* Brand palette */
+  --color-ivory: #f5f0e8;
+  --color-ivory-dark: #ede6d6;
+  --color-charcoal: #0f0f0d;
+  --color-charcoal-mid: #1c1c1a;
+  --color-stone: #6b6560;
+  --color-stone-light: #a09890;
+  --color-gold: #c9a96e;
+  --color-gold-dark: #a8864a;
+  --color-sand: #d4c5b0;
+
+  /* Design tokens (AGENTS §5) */
+  --color-background: #f5f0e8;
+  --color-surface: #ede6d6;
+  --color-text: #0f0f0d;
+  --color-text-muted: #6b6560;
+  --color-border: rgba(15, 15, 13, 0.12);
+  --color-accent: #c9a96e;
+  --color-dark: #0f0f0d;
+  --color-light: #f5f0e8;
+}
+
+:root {
+  --background: #f5f0e8;
+  --foreground: #0f0f0d;
+  --card: #ede6d6;
+  --card-foreground: #0f0f0d;
+  --primary: #0f0f0d;
+  --primary-foreground: #f5f0e8;
+  --secondary: #ede6d6;
+  --secondary-foreground: #0f0f0d;
+  --muted: #d4c5b0;
+  --muted-foreground: #6b6560;
+  --accent: #c9a96e;
+  --accent-foreground: #0f0f0d;
+  --border: rgba(15, 15, 13, 0.12);
+  --ring: #c9a96e;
+  --radius: 0px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(201, 169, 110, 0.35);
+  color: #0f0f0d;
+}
+
+/* Visible, consistent keyboard focus */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ── Typography scale ─────────────────────────────────────── */
+.text-display-xl {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(3.5rem, 9vw, 8rem);
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+}
+
+.text-display-lg {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  line-height: 0.96;
+}
+
+.text-heading-xl {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.05;
+}
+
+.text-heading-md {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+  line-height: 1.15;
+}
+
+.text-body {
+  font-weight: 300;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.text-caption {
+  font-weight: 300;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 300;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(15, 15, 13, 0.28); border-radius: 3px; }
+
+/* ── GSAP reveal system ─────────────────────────────────────
+   Elements opt in with `data-reveal`; ScrollTrigger batch animates
+   them to opacity 1 / translate 0. Hidden state is CSS-only.   */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(36px);
+  will-change: transform, opacity;
+}
+
+/* Cinematic image frames — wipe reveal driven by batchReveal */
+[data-frame] {
+  clip-path: inset(0 0 100% 0);
+}
+
+/* Hero load choreography atoms */
+[data-hero-line] {
+  transform: translateY(115%);
+  will-change: transform;
+}
+
+[data-hero-fade] {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+
+/* Word-reveal masks (TextReveal component) */
+.tr-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.tr-word {
+  display: inline-block;
+  transform: translateY(115%);
+  will-change: transform;
+}
+
+/* Image mask container — visuals animated by GSAP */
+.img-mask {
+  overflow: hidden;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Gold line accent */
+.gold-line::after {
+  content: '';
+  display: block;
+  width: 56px;
+  height: 1px;
+  background: var(--accent);
+  margin-top: 16px;
+}
+
+/* Oversized section number */
+.section-number {
+  font-family: var(--font-display);
+  font-size: clamp(5rem, 12vw, 10rem);
+  font-weight: 300;
+  color: rgba(15, 15, 13, 0.06);
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn-magnetic {
+  display: inline-block;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.btn-primary {
+  display: inline-block;
+  padding: 1rem 2.5rem;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-weight: 300;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+.btn-primary:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.btn-outline {
+  display: inline-block;
+  padding: 1rem 2.5rem;
+  border: 1px solid rgba(15, 15, 13, 0.3);
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-weight: 300;
+  transition: border-color 0.3s ease, color 0.3s ease;
+}
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-on-dark.btn-primary {
+  background-color: var(--light);
+  color: var(--dark);
+}
+.btn-on-dark.btn-primary:hover {
+  background-color: var(--accent);
+  color: var(--dark);
+}
+
+.btn-on-dark.btn-outline {
+  border-color: rgba(245, 240, 232, 0.4);
+  color: var(--light);
+}
+.btn-on-dark.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Property card hover ──────────────────────────────────── */
+.property-card .card-img img {
+  transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.property-card:hover .card-img img {
+  transform: scale(1.05);
+}
+
+.property-card .card-overlay {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.property-card:hover .card-overlay {
+  opacity: 1;
+}
+
+/* ── Neighborhood card ────────────────────────────────────── */
+.neighborhood-card {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+.neighborhood-card img {
+  transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.neighborhood-card:hover img {
+  transform: scale(1.08);
+}
+.neighborhood-card .neighborhood-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(15, 15, 13, 0.85) 0%, rgba(15, 15, 13, 0.2) 50%, transparent 100%);
+}
+.neighborhood-card .neighborhood-detail {
+  transform: translateY(20px);
+  opacity: 0;
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+.neighborhood-card:hover .neighborhood-detail {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* ── Fullscreen nav menu ──────────────────────────────────── */
+.fullscreen-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--primary);
+  transform: translateY(-100%);
+  transition: transform 0.7s cubic-bezier(0.76, 0, 0.24, 1);
+}
+.fullscreen-menu.open {
+  transform: translateY(0);
+}
+
+/* ── Custom cursor ──────────────────────────────────────────
+   Positions via left/top + negative margins so GSAP x/y never
+   conflicts with centering.                                  */
+.custom-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.cursor-dot {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.cursor-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 88px;
+  height: 88px;
+  margin: -44px 0 0 -44px;
+  border: 1px solid rgba(245, 240, 232, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  scale: 0.6;
+  background: rgba(15, 15, 13, 0.12);
+}
+
+.cursor-label {
+  color: #f5f0e8;
+  font-size: 0.6875rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+  [data-frame] {
+    clip-path: inset(0 0 0% 0);
+  }
+  [data-hero-line],
+  [data-hero-fade] {
+    transform: none;
+    opacity: 1;
+  }
+  .tr-word {
+    transform: none;
+  }
+  .custom-cursor {
+    display: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

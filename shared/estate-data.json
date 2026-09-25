@@ -1,0 +1,239 @@
+{
+  "properties": [
+    {
+      "id": "p1",
+      "name": "The Oasis House",
+      "location": "Al Shati District",
+      "neighborhood": "Al Shati",
+      "city": "Jeddah",
+      "price": "SAR 8,500,000",
+      "priceNum": 8500000,
+      "type": "villa",
+      "listingType": "buy",
+      "beds": 5,
+      "baths": 6,
+      "area": 820,
+      "image": "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=1200&h=800&fit=crop&auto=format",
+      "images": [
+        "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=1400&h=900&fit=crop&auto=format",
+        "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1400&h=900&fit=crop&auto=format",
+        "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=1400&h=900&fit=crop&auto=format",
+        "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1400&h=900&fit=crop&auto=format"
+      ],
+      "description": "An architectural masterpiece perched above the Red Sea coast. The Oasis House redefines luxury living through its seamless integration of interior and exterior space, featuring panoramic ocean views from every principal room.",
+      "amenities": ["Private Pool", "Home Cinema", "Smart Home", "Garden", "Gym", "Sauna", "Staff Quarters", "Sea View"],
+      "status": "available",
+      "year": 2023,
+      "agentId": "a1"
+    },
+    {
+      "id": "p2",
+      "name": "Riviera Penthouse",
+      "location": "Al Rawdah",
+      "neighborhood": "Al Rawdah",
+      "city": "Jeddah",
+      "price": "SAR 5,200,000",
+      "priceNum": 5200000,
+      "type": "penthouse",
+      "listingType": "buy",
+      "beds": 4,
+      "baths": 4,
+      "area": 480,
+      "image": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&h=800&fit=crop&auto=format",
+      "images": [
+        "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1400&h=900&fit=crop&auto=format",
+        "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1400&h=900&fit=crop&auto=format"
+      ],
+      "description": "A full-floor penthouse commanding 360° views of Jeddah's skyline. Designed by a Pritzker-nominated architect, every detail reflects an uncompromising commitment to quality and craft.",
+      "amenities": ["Rooftop Terrace", "Private Elevator", "Home Office", "Wine Cellar", "City View", "Concierge"],
+      "status": "new",
+      "year": 2024,
+      "agentId": "a2"
+    },
+    {
+      "id": "p3",
+      "name": "Horizon Villa",
+      "location": "Obhur",
+      "neighborhood": "Obhur",
+      "city": "Jeddah",
+      "price": "SAR 12,000,000",
+      "priceNum": 12000000,
+      "type": "villa",
+      "listingType": "buy",
+      "beds": 6,
+      "baths": 7,
+      "area": 1200,
+      "image": "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=1200&h=800&fit=crop&auto=format",
+      "images": [
+        "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=1400&h=900&fit=crop&auto=format",
+        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1400&h=900&fit=crop&auto=format"
+      ],
+      "description": "Set on the shores of Obhur Creek, Horizon Villa is a trophy waterfront estate offering unrivaled privacy and an exceptional standard of living. Private beach, yacht dock, and full resort amenities.",
+      "amenities": ["Private Beach", "Yacht Dock", "Infinity Pool", "Guest House", "Tennis Court", "Home Automation"],
+      "status": "available",
+      "year": 2022,
+      "agentId": "a1"
+    },
+    {
+      "id": "p4",
+      "name": "Arcadia Residence",
+      "location": "Al Zahra",
+      "neighborhood": "Al Zahra",
+      "city": "Jeddah",
+      "price": "SAR 3,800,000",
+      "priceNum": 3800000,
+      "type": "apartment",
+      "listingType": "buy",
+      "beds": 3,
+      "baths": 3,
+      "area": 310,
+      "image": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200&h=800&fit=crop&auto=format",
+      "images": [
+        "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1400&h=900&fit=crop&auto=format"
+      ],
+      "description": "A refined urban apartment in the heart of Al Zahra. Floor-to-ceiling glazing, bespoke Italian finishes, and a location that places every amenity within reach.",
+      "amenities": ["Concierge", "Rooftop Pool", "Valet Parking", "Spa", "Children's Club"],
+      "status": "under-contract",
+      "year": 2023,
+      "agentId": "a3"
+    },
+    {
+      "id": "p5",
+      "name": "The Coral Duplex",
+      "location": "Al Hamra",
+      "neighborhood": "Al Hamra",
+      "city": "Jeddah",
+      "price": "SAR 42,000 / mo",
+      "priceNum": 42000,
+      "type": "duplex",
+      "listingType": "rent",
+      "beds": 4,
+      "baths": 4,
+      "area": 395,
+      "image": "https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=1200&h=800&fit=crop&auto=format",
+      "images": [
+        "https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=1400&h=900&fit=crop&auto=format"
+      ],
+      "description": "A double-height duplex apartment in the exclusive Al Hamra waterfront tower. Direct sea views, private terrace, and five-star building services.",
+      "amenities": ["Sea View", "Private Terrace", "Pool", "Gym", "Parking", "Building Security"],
+      "status": "available",
+      "year": 2021,
+      "agentId": "a2"
+    },
+    {
+      "id": "p6",
+      "name": "Maison Blanc",
+      "location": "Al Shati District",
+      "neighborhood": "Al Shati",
+      "city": "Jeddah",
+      "price": "SAR 55,000 / mo",
+      "priceNum": 55000,
+      "type": "villa",
+      "listingType": "rent",
+      "beds": 5,
+      "baths": 5,
+      "area": 680,
+      "image": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&h=800&fit=crop&auto=format",
+      "images": [
+        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1400&h=900&fit=crop&auto=format"
+      ],
+      "description": "A Modernist white villa on Jeddah's most desirable coastal address. All-white interiors by a celebrated French designer, with a double-height atrium at its heart.",
+      "amenities": ["Pool", "Garden", "Home Office", "Smart Home", "Double Garage", "Staff Quarters"],
+      "status": "available",
+      "year": 2023,
+      "agentId": "a1"
+    }
+  ],
+  "agents": [
+    {
+      "id": "a1",
+      "name": "Layla Al-Rashid",
+      "role": "Senior Property Advisor",
+      "languages": "Arabic, English, French",
+      "experience": 14,
+      "properties": 47,
+      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&h=800&fit=crop&auto=format",
+      "phone": "+966 50 123 4567",
+      "email": "layla@estate.sa"
+    },
+    {
+      "id": "a2",
+      "name": "Omar Khalil",
+      "role": "Luxury Sales Director",
+      "languages": "Arabic, English",
+      "experience": 18,
+      "properties": 92,
+      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop&auto=format",
+      "phone": "+966 50 234 5678",
+      "email": "omar@estate.sa"
+    },
+    {
+      "id": "a3",
+      "name": "Nadia Hamdan",
+      "role": "Investment Consultant",
+      "languages": "Arabic, English, German",
+      "experience": 10,
+      "properties": 31,
+      "image": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=600&h=800&fit=crop&auto=format",
+      "phone": "+966 50 345 6789",
+      "email": "nadia@estate.sa"
+    }
+  ],
+  "neighborhoods": [
+    {
+      "id": "n1",
+      "name": "Al Shati",
+      "tagline": "Waterfront Prestige",
+      "count": 38,
+      "avgPrice": "SAR 7.2M",
+      "avgPriceNum": 7200000,
+      "coordinates": [21.6042, 39.1145],
+      "description": "Jeddah's premier coastal address, home to embassies, luxury villas, and the finest dining.",
+      "image": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=600&fit=crop&auto=format"
+    },
+    {
+      "id": "n2",
+      "name": "Al Rawdah",
+      "tagline": "Established Elegance",
+      "count": 24,
+      "avgPrice": "SAR 4.8M",
+      "avgPriceNum": 4800000,
+      "coordinates": [21.5423, 39.1724],
+      "description": "Tree-lined streets, established families, and a quiet dignity that endures through generations.",
+      "image": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&h=600&fit=crop&auto=format"
+    },
+    {
+      "id": "n3",
+      "name": "Obhur",
+      "tagline": "Creek & Sea",
+      "count": 19,
+      "avgPrice": "SAR 9.5M",
+      "avgPriceNum": 9500000,
+      "coordinates": [21.6995, 39.1086],
+      "description": "Waterfront compounds along Obhur Creek, favored by those who want private beach access.",
+      "image": "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=800&h=600&fit=crop&auto=format"
+    },
+    {
+      "id": "n4",
+      "name": "Al Zahra",
+      "tagline": "Urban Sophistication",
+      "count": 45,
+      "avgPrice": "SAR 3.2M",
+      "avgPriceNum": 3200000,
+      "coordinates": [21.5711, 39.1499],
+      "description": "Contemporary apartments and boutique living, ideal for professionals and young families.",
+      "image": "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800&h=600&fit=crop&auto=format"
+    },
+    {
+      "id": "n5",
+      "name": "Al Hamra",
+      "tagline": "Corniche Living",
+      "count": 31,
+      "avgPrice": "SAR 5.6M",
+      "avgPriceNum": 5600000,
+      "coordinates": [21.6125, 39.1079],
+      "description": "High-rise luxury along the Corniche, where city and sea merge in spectacular fashion.",
+      "image": "https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=800&h=600&fit=crop&auto=format"
+    }
+  ]
+}
