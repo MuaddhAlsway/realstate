@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { api } from "../services/api"
 import { useReveal } from "../hooks/useReveal"
+import { useSiteContent } from "../services/siteContent"
 
 interface ContactForm {
   name: string
@@ -20,6 +21,8 @@ const EMPTY: ContactForm = {
 
 export default function Contact() {
   const ref = useReveal<HTMLDivElement>()
+  const { content } = useSiteContent()
+  const contact = content.contact
   const [form, setForm] = useState<ContactForm>(EMPTY)
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
@@ -61,14 +64,14 @@ export default function Contact() {
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-16">
           <p className="eyebrow mb-4" style={{ color: "#C9A96E" }} data-reveal>
-            Reach Out
+            {contact.eyebrow}
           </p>
           <h1
             className="text-display-lg"
             style={{ color: "#F5F0E8" }}
             data-reveal
           >
-            Let's talk
+            {contact.heading}
           </h1>
         </div>
       </div>
@@ -79,29 +82,30 @@ export default function Contact() {
           <div className="lg:col-span-4" data-reveal>
             <div className="mb-16">
               <p className="eyebrow mb-6" style={{ color: "#C9A96E" }}>
-                Offices
+                {contact.officesEyebrow}
               </p>
               <p
                 className="text-sm font-light mb-1"
                 style={{ color: "#0F0F0D" }}
               >
-                Jeddah HQ
+                {contact.officeName}
               </p>
               <p
                 className="text-sm font-light leading-relaxed"
                 style={{ color: "#6B6560" }}
               >
-                Al Shati District
-                <br />
-                King Abdulaziz Road
-                <br />
-                Jeddah, Saudi Arabia 23434
+                {contact.addressLines.map((line) => (
+                  <span key={line}>
+                    {line}
+                    <br />
+                  </span>
+                ))}
               </p>
             </div>
 
             <div className="mb-16">
               <p className="eyebrow mb-6" style={{ color: "#C9A96E" }}>
-                Direct
+                {contact.directEyebrow}
               </p>
               <div className="flex flex-col gap-4">
                 <div>
@@ -109,14 +113,14 @@ export default function Contact() {
                     className="text-xs font-light mb-1"
                     style={{ color: "#A09890" }}
                   >
-                    Sales
+                    {contact.salesLabel}
                   </p>
                   <a
-                    href="tel:+966123456789"
+                    href={`tel:${contact.salesPhone.replace(/[^0-9+]/g, "")}`}
                     className="text-sm font-light hover:text-[#C9A96E] transition-colors"
                     style={{ color: "#0F0F0D" }}
                   >
-                    +966 12 345 6789
+                    {contact.salesPhone}
                   </a>
                 </div>
                 <div>
@@ -124,14 +128,14 @@ export default function Contact() {
                     className="text-xs font-light mb-1"
                     style={{ color: "#A09890" }}
                   >
-                    Email
+                    {contact.emailLabel}
                   </p>
                   <a
-                    href="mailto:hello@estate.sa"
+                    href={`mailto:${contact.email}`}
                     className="text-sm font-light hover:text-[#C9A96E] transition-colors"
                     style={{ color: "#0F0F0D" }}
                   >
-                    hello@estate.sa
+                    {contact.email}
                   </a>
                 </div>
               </div>
@@ -139,12 +143,15 @@ export default function Contact() {
 
             <div>
               <p className="eyebrow mb-6" style={{ color: "#C9A96E" }}>
-                Hours
+                {contact.hoursEyebrow}
               </p>
               <p className="text-sm font-light" style={{ color: "#6B6560" }}>
-                Sunday – Thursday
-                <br />
-                9:00 AM – 6:00 PM
+                {contact.hoursLines.map((line) => (
+                  <span key={line}>
+                    {line}
+                    <br />
+                  </span>
+                ))}
               </p>
             </div>
           </div>
@@ -161,11 +168,10 @@ export default function Contact() {
                     color: "#0F0F0D",
                   }}
                 >
-                  Thank you.
+                  {contact.successTitle}
                 </p>
                 <p className="text-sm font-light" style={{ color: "#6B6560" }}>
-                  We've received your message and will be in touch within 24
-                  hours.
+                  {contact.successText}
                 </p>
                 <button
                   type="button"
@@ -176,7 +182,7 @@ export default function Contact() {
                   className="mt-4 text-xs tracking-[0.2em] uppercase font-light hover:text-[#C9A96E] transition-colors"
                   style={{ color: "#0F0F0D" }}
                 >
-                  Send another →
+                  {contact.sendAnotherLabel}
                 </button>
               </div>
             ) : (

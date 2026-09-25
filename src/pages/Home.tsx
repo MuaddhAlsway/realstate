@@ -17,6 +17,7 @@ import {
   type Property,
 } from "../data/properties"
 import { applyPropertyFilters, type PropertyQuery } from "../utils/properties"
+import { useSiteContent } from "../services/siteContent"
 
 const FLAGSHIP: Property =
   properties.find((p) => p.listingType === "buy") ?? properties[0]
@@ -26,6 +27,8 @@ const FLAGSHIP: Property =
 function Hero() {
   const heroRef = useRef<HTMLElement>(null)
   const reduced = useReducedMotion()
+  const { content } = useSiteContent()
+  const home = content.home
   const [active, setActive] = useState<"buy" | "rent">("buy")
   const [query, setQuery] = useState("")
 
@@ -101,8 +104,8 @@ function Hero() {
       >
         <img
           data-hero-image
-          src="https://images.unsplash.com/photo-1613977257363-707ba9348227?w=1920&h=1200&fit=crop&auto=format"
-          alt="A modern coastal villa at dusk on the Jeddah waterfront"
+          src={home.heroImage}
+          alt={home.heroImageAlt}
           className="w-full h-full object-cover opacity-0"
           fetchPriority="high"
         />
@@ -125,24 +128,24 @@ function Hero() {
             className="eyebrow mb-8"
             style={{ color: "#C9A96E" }}
           >
-            Jeddah · Saudi Arabia · Est. 2012
+            {home.heroEyebrow}
           </p>
           <h1
             className="font-light text-display-xl mb-8"
             style={{ color: "#F5F0E8" }}
           >
             <span className="line-mask">
-              <span data-hero-line>Find a place</span>
+              <span data-hero-line>{home.heroLine1}</span>
             </span>
             <span className="line-mask">
               <span data-hero-line>
                 <em className="italic" style={{ color: "#C9A96E" }}>
-                  worth calling
+                  {home.heroLine2}
                 </em>
               </span>
             </span>
             <span className="line-mask">
-              <span data-hero-line>home.</span>
+              <span data-hero-line>{home.heroLine3}</span>
             </span>
           </h1>
           <p
@@ -150,7 +153,7 @@ function Hero() {
             className="text-base font-light max-w-md"
             style={{ color: "rgba(245,240,232,0.65)" }}
           >
-            Over 250 curated residences in Jeddah's most sought-after addresses.
+            {home.heroDescription}
           </p>
         </div>
 
@@ -277,6 +280,8 @@ function Hero() {
 
 function FeaturedSection() {
   const ref = useReveal<HTMLElement>()
+  const { content } = useSiteContent()
+  const home = content.home
   const featured = properties.filter((p) => p.listingType === "buy").slice(0, 3)
 
   return (
@@ -290,11 +295,11 @@ function FeaturedSection() {
       >
         <div className="max-w-3xl">
           <p className="eyebrow mb-4" style={{ color: "#C9A96E" }}>
-            Selected Residences
+            {home.featuredEyebrow}
           </p>
           <TextReveal
             as="h2"
-            text="Exceptional properties, curated for you."
+            text={home.featuredTitle}
             className="text-heading-xl"
             style={{}}
           />
@@ -304,7 +309,7 @@ function FeaturedSection() {
           className="hidden md:flex items-center gap-3 text-xs tracking-[0.2em] uppercase font-light transition-colors duration-300 hover:text-[#C9A96E]"
           style={{ color: "#6B6560" }}
         >
-          View all <span style={{ color: "#C9A96E" }}>→</span>
+          {home.featuredCta} <span style={{ color: "#C9A96E" }}>→</span>
         </Link>
       </div>
 
@@ -429,6 +434,8 @@ function HorizontalShowcase() {
   const trackRef = useRef<HTMLDivElement>(null)
   const rowRef = useRef<HTMLDivElement>(null)
   const reduced = useReducedMotion()
+  const { content } = useSiteContent()
+  const home = content.home
 
   useGSAP(
     () => {
@@ -536,13 +543,13 @@ function HorizontalShowcase() {
       <div className="px-6 lg:px-16 pt-24 pb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow mb-4" style={{ color: "#C9A96E" }}>
-            Explore Exceptional Homes
+            {home.showcaseEyebrow}
           </p>
           <p
             className="text-sm font-light"
             style={{ color: "rgba(245,240,232,0.45)" }}
           >
-            {reduced ? "Scroll to explore" : "Scroll or drag to explore"}
+            {reduced ? "Scroll to explore" : home.showcaseHint}
           </p>
         </div>
         <span
@@ -899,6 +906,8 @@ function FilteredResults({ results }: { results: Property[] }) {
 
 function DiscoverySection() {
   const sectionRef = useRef<HTMLElement>(null)
+  const { content } = useSiteContent()
+  const home = content.home
   const [active, setActive] = useState<"buy" | "rent">("buy")
   const [propType, setPropType] = useState("any")
   const [beds, setBeds] = useState("any")
@@ -924,11 +933,11 @@ function DiscoverySection() {
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-14">
         <div className="mb-8 lg:mb-0">
           <p className="eyebrow mb-4" style={{ color: "#C9A96E" }}>
-            Property Discovery
+            {home.discoveryEyebrow}
           </p>
           <TextReveal
             as="h2"
-            text="What are you looking for today?"
+            text={home.discoveryTitle}
             className="text-heading-xl"
           />
         </div>
@@ -1023,40 +1032,8 @@ function DiscoverySection() {
 
 function StatsSection() {
   const ref = useReveal<HTMLElement>()
-  const stats = [
-    {
-      label: "Premium Properties",
-      sub: "across Jeddah",
-      prefix: "",
-      suffix: "+",
-      val: 250,
-      decimals: 0,
-    },
-    {
-      label: "Neighborhoods",
-      sub: "covered",
-      prefix: "",
-      suffix: "",
-      val: 18,
-      decimals: 0,
-    },
-    {
-      label: "Years Experience",
-      sub: "in luxury real estate",
-      prefix: "",
-      suffix: "+",
-      val: 12,
-      decimals: 0,
-    },
-    {
-      label: "Property Value",
-      sub: "SAR, managed",
-      prefix: "SAR ",
-      suffix: "B+",
-      val: 1.2,
-      decimals: 1,
-    },
-  ]
+  const { content } = useSiteContent()
+  const stats = content.home.stats
 
   return (
     <section
@@ -1185,33 +1162,9 @@ function NeighborhoodsSection() {
 
 function WhyUsSection() {
   const ref = useReveal<HTMLElement>()
-  const items = [
-    {
-      num: "01",
-      title: "Curated Properties",
-      text: "We represent fewer than 5% of properties listed — only those that meet our exacting standard for architecture, location, and lifestyle.",
-    },
-    {
-      num: "02",
-      title: "Local Expertise",
-      text: "Over a decade embedded in Jeddah's luxury market. We understand every neighborhood, every developer, and every opportunity.",
-    },
-    {
-      num: "03",
-      title: "Verified Listings",
-      text: "Every property is personally verified by our team. What you see is exactly what you get — no exceptions.",
-    },
-    {
-      num: "04",
-      title: "Investment Guidance",
-      text: "Strategic advice backed by market data and decades of transactional experience across Saudi Arabia's most valuable asset classes.",
-    },
-    {
-      num: "05",
-      title: "Private Viewings",
-      text: "Exclusive after-hours and private access. No open houses, no crowded visits — just you, the property, and complete discretion.",
-    },
-  ]
+  const { content } = useSiteContent()
+  const home = content.home
+  const items = home.whyUs
 
   return (
     <section
@@ -1222,11 +1175,11 @@ function WhyUsSection() {
       <div className="max-w-[1440px] mx-auto px-6 lg:px-16">
         <div className="mb-16 lg:mb-20" data-reveal>
           <p className="eyebrow mb-4" style={{ color: "#C9A96E" }}>
-            Our Approach
+            {home.whyUsEyebrow}
           </p>
           <TextReveal
             as="h2"
-            text="Why discerning clients choose Estate."
+            text={home.whyUsTitle}
             className="text-heading-xl"
           />
         </div>
@@ -1279,6 +1232,8 @@ function WhyUsSection() {
 
 function ArchStatement() {
   const ref = useReveal<HTMLElement>()
+  const { content } = useSiteContent()
+  const statement = content.home.archStatement
   return (
     <section
       ref={ref}
@@ -1298,7 +1253,7 @@ function ArchStatement() {
         <div className="text-center">
           <TextReveal
             as="h2"
-            text="Architecture shapes the way we live."
+            text={statement}
             className="font-light text-[clamp(2.6rem,8.5vw,7rem)] leading-[0.92]"
             style={{}}
             start="top 80%"
@@ -1563,6 +1518,11 @@ function TestimonialsSection() {
 
 function CtaSection() {
   const ref = useReveal<HTMLElement>()
+  const { content } = useSiteContent()
+  const home = content.home
+  const ctaWords = home.ctaTitle.trim().split(/\s+/)
+  const ctaLead = ctaWords.slice(0, -1).join(" ") || home.ctaTitle
+  const ctaTail = ctaWords[ctaWords.length - 1] ?? ""
 
   return (
     <section
@@ -1589,28 +1549,28 @@ function CtaSection() {
 
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-6">
         <p className="eyebrow mb-8" style={{ color: "#C9A96E" }} data-reveal>
-          Begin
+          {home.ctaEyebrow}
         </p>
         <h2
           className="font-light mb-12 text-[clamp(2.8rem,7vw,6rem)] leading-[0.9]"
           style={{ color: "#F5F0E8" }}
           data-reveal
         >
-          Your next chapter
+          {ctaLead}
           <br />
           <em className="italic" style={{ color: "#C9A96E" }}>
-            starts here.
+            {ctaTail}
           </em>
         </h2>
         <div className="flex flex-col sm:flex-row gap-4" data-reveal>
           <Magnetic>
             <Link to="/properties" className="btn-primary btn-on-dark">
-              Explore Properties
+              {home.ctaPrimaryLabel}
             </Link>
           </Magnetic>
           <Magnetic>
             <Link to="/contact" className="btn-outline btn-on-dark">
-              Speak With an Advisor
+              {home.ctaSecondaryLabel}
             </Link>
           </Magnetic>
         </div>

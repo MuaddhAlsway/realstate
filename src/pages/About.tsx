@@ -1,9 +1,12 @@
 import { Link } from "react-router-dom"
 import { agents } from "../data/properties"
 import { useReveal } from "../hooks/useReveal"
+import { useSiteContent } from "../services/siteContent"
 
 export default function About() {
   const ref = useReveal<HTMLDivElement>()
+  const { content } = useSiteContent()
+  const about = content.about
 
   return (
     <div ref={ref} style={{ backgroundColor: "#F5F0E8", minHeight: "100vh" }}>
@@ -17,14 +20,14 @@ export default function About() {
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-16">
           <p className="eyebrow mb-4" style={{ color: "#C9A96E" }} data-reveal>
-            Who We Are
+            {about.eyebrow}
           </p>
           <h1
             className="text-display-lg"
             style={{ color: "#F5F0E8" }}
             data-reveal
           >
-            About Estate
+            {about.heading}
           </h1>
         </div>
       </div>
@@ -42,9 +45,7 @@ export default function About() {
                 lineHeight: "1.4",
               }}
             >
-              Since 2012, we have been Jeddah's most trusted name in luxury real
-              estate — not by volume, but by the singular standard we hold every
-              property and every client relationship to.
+              {about.intro}
             </p>
           </div>
           <div className="lg:col-span-5 lg:col-start-8" data-reveal>
@@ -52,17 +53,13 @@ export default function About() {
               className="text-sm font-light leading-relaxed mb-6"
               style={{ color: "#6B6560" }}
             >
-              Estate was founded on a singular belief: that exceptional
-              properties deserve exceptional representation. We are not a
-              marketplace — we are curators, advisors, and advocates.
+              {about.body1}
             </p>
             <p
               className="text-sm font-light leading-relaxed"
               style={{ color: "#6B6560" }}
             >
-              Our team combines deep local knowledge with international
-              perspectives, allowing us to serve clients from across Saudi
-              Arabia and the world with the same precision and discretion.
+              {about.body2}
             </p>
           </div>
         </div>
@@ -74,8 +71,8 @@ export default function About() {
           data-frame
         >
           <img
-            src="https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=1920&h=700&fit=crop&auto=format"
-            alt="Estate office architecture"
+            src={about.image}
+            alt={about.imageAlt}
             className="w-full h-full object-cover"
             loading="lazy"
             decoding="async"
@@ -85,26 +82,10 @@ export default function About() {
         {/* Values */}
         <div className="mb-32">
           <p className="eyebrow mb-12" style={{ color: "#C9A96E" }} data-reveal>
-            Our Values
+            {about.valuesEyebrow}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
-            {[
-              {
-                num: "01",
-                title: "Curation",
-                text: "We select fewer than 5% of available properties — only those meeting our exacting criteria for architecture, location, and living quality.",
-              },
-              {
-                num: "02",
-                title: "Discretion",
-                text: "Every transaction is conducted with absolute confidentiality. Our clients' privacy is never a variable.",
-              },
-              {
-                num: "03",
-                title: "Expertise",
-                text: "Over twelve years, hundreds of transactions, and a team with careers dedicated entirely to the luxury segment.",
-              },
-            ].map((v) => (
+            {about.values.map((v) => (
               <div
                 key={v.num}
                 className="p-10"
@@ -141,7 +122,7 @@ export default function About() {
         {/* Team */}
         <div className="mb-24">
           <p className="eyebrow mb-12" style={{ color: "#C9A96E" }} data-reveal>
-            The Team
+            {about.teamEyebrow}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
             {agents.map((a) => (
@@ -186,14 +167,14 @@ export default function About() {
             className="text-heading-xl mb-8 md:mb-0"
             style={{ color: "#F5F0E8" }}
           >
-            Ready to find your perfect home?
+            {about.ctaTitle}
           </h2>
           <div className="flex gap-4">
             <Link to="/properties" className="btn-on-dark btn-primary">
-              Browse Properties
+              {about.ctaPrimaryLabel}
             </Link>
             <Link to="/contact" className="btn-on-dark btn-outline">
-              Contact Us
+              {about.ctaSecondaryLabel}
             </Link>
           </div>
         </div>

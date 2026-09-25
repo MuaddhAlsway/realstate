@@ -160,7 +160,7 @@ export const api = {
     http.post<unknown>(`${ROOT}/auth/logout`, { refreshToken }),
 
   me: async (): Promise<User> => {
-    const data = await http.get<{ user: User }>(`${ROOT}/auth/me`)
-    return data.user
+    // The backend returns the serialized me(user) directly as `data`.
+    return http.get<User>(`${ROOT}/auth/me`)
   },
 }

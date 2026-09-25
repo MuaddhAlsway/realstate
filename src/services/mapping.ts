@@ -117,7 +117,9 @@ export function mapViewing(value: unknown): ViewingRequest {
     id: String(w?.id ?? ""),
     propertyId: property?.id ?? "",
     propertyName: property?.title ?? undefined,
-    name: agent?.name ?? requester?.name ?? "",
+    // The requester is the person who made the request; prefer them over the
+    // property's assigned agent for the human-facing name/contact fields.
+    name: requester?.name ?? agent?.name ?? "",
     email: requester?.email ?? "",
     phone: agent?.phone ?? "",
     date: String(w?.date ?? ""),
