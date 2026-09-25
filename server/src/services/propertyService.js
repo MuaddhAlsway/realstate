@@ -1,9 +1,21 @@
-import { and, asc, count, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm"
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import * as schema from "../db/schema/index.js"
 import { HttpError } from "../errors/index.js"
 import { ErrorCodes } from "../errors/error-codes.js"
 import { translateDatabaseError } from "../errors/pg.js"
+import { deleteAsset, markAssetsAttached } from "./mediaService.js"
 
 /**
  * Property service — owns all database access and property business rules
@@ -61,6 +73,7 @@ const listRelationColumns = {
     columns: {
       id: true,
       url: true,
+      publicId: true,
       altText: true,
       displayOrder: true,
       isCover: true,
@@ -76,6 +89,7 @@ const detailRelationColumns = {
     columns: {
       id: true,
       url: true,
+      publicId: true,
       altText: true,
       displayOrder: true,
       isCover: true,
@@ -157,19 +171,22 @@ function assertAtMostOneCover(images) {
 }
 
 /**
- * Normalize editor-provided images for storage: default `displayOrder` to
- * the array index and `isCover` to the first image when none is flagged
- * (mirrors how the seed data is shaped).
+ * Normalize editor-provided images for storage: carry the existing row `id`
+ * (diff-based sync), default `displayOrder` to the array index, `isCover` to
+ * the first image when none is flagged, and `publicId` to null when absent
+ * (legacy URL images). Cover is deterministically the first ordered image
+ * when the admin left none marked (also covers "cover deleted" promotion).
  */
 function applyImageDefaults(images) {
   assertAtMostOneCover(images)
   const hasCover = images.some((img) => img.isCover === true)
   return images.map((img, index) => ({
+    id: img.id ?? null,
     url: img.url,
-    publicId: null,
+    publicId: img.publicId ? String(img.publicId).trim() : null,
     altText: img.altText ?? null,
     displayOrder: img.displayOrder ?? index,
-    isCover: hasCover ? (img.isCover === true) : index === 0,
+    isCover: hasCover ? img.isCover === true : index === 0,
   }))
 }
 
@@ -178,7 +195,10 @@ function applyImageDefaults(images) {
  * new name (unique constraint → ON CONFLICT DO NOTHING), then read ids.
  */
 async function txResolveAmenities(tx, names) {
-  await tx.insert(amenities).values(names.map((name) => ({ name }))).onConflictDoNothing()
+  await tx
+    .insert(amenities)
+    .values(names.map((name) => ({ name })))
+    .onConflictDoNothing()
   const rows = await tx
     .select({ id: amenities.id })
     .from(amenities)
@@ -198,20 +218,109 @@ async function txReplaceAmenities(tx, propertyId, names) {
     .onConflictDoNothing()
 }
 
-async function txReplaceImages(tx, propertyId, images) {
-  await tx.delete(propertyImages).where(eq(propertyImages.propertyId, propertyId))
+/**
+ * Diff-based image sync (Phase 10): matches incoming rows by their stable
+ * `id`, so unchanged images keep their rows (and provider provenance) while
+ * deletes/reorders/cover changes apply exactly. Returns the provider
+ * collateral the caller must reconcile AFTER the DB commit:
+ *   detachedPublicIds — removed from the property → destroy at the provider
+ *   attachedPublicIds  — kept/new → no longer "pending" at the provider
+ */
+async function txSyncImages(tx, propertyId, images) {
   const resolved = applyImageDefaults(images)
-  if (resolved.length === 0) return
-  await tx.insert(propertyImages).values(
-    resolved.map((img) => ({
-      propertyId,
-      url: img.url,
-      publicId: img.publicId,
-      altText: img.altText,
-      displayOrder: img.displayOrder,
-      isCover: img.isCover,
-    })),
+
+  const existing = await tx
+    .select({
+      id: propertyImages.id,
+      publicId: propertyImages.publicId,
+    })
+    .from(propertyImages)
+    .where(eq(propertyImages.propertyId, propertyId))
+
+  const existingById = new Map(existing.map((row) => [row.id, row]))
+  const incomingIds = new Set(
+    resolved.filter((img) => img.id != null).map((img) => img.id),
   )
+
+  const toDelete = existing.filter((row) => !incomingIds.has(row.id))
+  const toInsert = resolved.filter(
+    (img) => img.id == null || !existingById.has(img.id),
+  )
+  const kept = new Map(
+    resolved
+      .filter((img) => img.id != null && existingById.has(img.id))
+      .map((img) => [img.id, img]),
+  )
+
+  if (toDelete.length > 0) {
+    await tx.delete(propertyImages).where(
+      inArray(
+        propertyImages.id,
+        toDelete.map((row) => row.id),
+      ),
+    )
+  }
+
+  // Reflow covers safely: clear every cover first so the partial unique
+  // index on (property_id) WHERE is_cover never sees a transient duplicate.
+  await tx
+    .update(propertyImages)
+    .set({ isCover: false })
+    .where(eq(propertyImages.propertyId, propertyId))
+
+  for (const img of kept.values()) {
+    await tx
+      .update(propertyImages)
+      .set({
+        url: img.url,
+        publicId: img.publicId,
+        altText: img.altText,
+        displayOrder: img.displayOrder,
+        isCover: img.isCover,
+      })
+      .where(eq(propertyImages.id, img.id))
+  }
+
+  if (toInsert.length > 0) {
+    await tx.insert(propertyImages).values(
+      toInsert.map((img) => ({
+        propertyId,
+        url: img.url,
+        publicId: img.publicId,
+        altText: img.altText,
+        displayOrder: img.displayOrder,
+        isCover: img.isCover,
+      })),
+    )
+  }
+
+  const detachedPublicIds = toDelete.map((row) => row.publicId).filter(Boolean)
+  const attachedPublicIds = toInsert
+    .map((img) => img.publicId)
+    .concat([...kept.values()].map((img) => img.publicId))
+    .filter(Boolean)
+  return { detachedPublicIds, attachedPublicIds }
+}
+
+/**
+ * Reconcile provider state AFTER a successful DB commit. Detached managed
+ * assets are destroyed; attached assets stop being collectible as orphans.
+ * Both are best-effort — a provider failure must not roll back committed
+ * property data (the DB never points at destroyed assets; a leaked blob is
+ * recoverable manually, a half-written property is not).
+ */
+function reconcileProviderImages({
+  detachedPublicIds = [],
+  attachedPublicIds = [],
+} = {}) {
+  for (const publicId of detachedPublicIds) {
+    deleteAsset(publicId).catch((err) => {
+      console.error(`[media] failed to delete detached asset ${publicId}:`, err)
+    })
+  }
+  if (attachedPublicIds.length > 0) {
+    markAssetsAttached(attachedPublicIds).catch(() => {}) // already best-effort
+  }
 }
 
 // ── Phase 04: list query compilation ─────────────────────────────────────
@@ -365,10 +474,12 @@ export async function getPropertyById(id) {
 
 /**
  * Create a property plus its images and amenity associations in one
- * transaction — any failure rolls the whole asset bundle back.
+ * transaction — any failure rolls the whole asset bundle back. Provider
+ * collateral (pending-tag removal) is reconciled only after the commit.
  */
 export async function createProperty(input) {
   const db = requireDb()
+  let attachedPublicIds = []
   const propertyId = await run(() =>
     db.transaction(async (tx) => {
       const [created] = await tx
@@ -379,11 +490,13 @@ export async function createProperty(input) {
         await txReplaceAmenities(tx, created.id, input.amenities)
       }
       if (input.images?.length) {
-        await txReplaceImages(tx, created.id, input.images)
+        const result = await txSyncImages(tx, created.id, input.images)
+        attachedPublicIds = result.attachedPublicIds
       }
       return created.id
     }),
   )
+  reconcileProviderImages({ attachedPublicIds })
   // Re-read with relations instead of hand-assembling the response row.
   return getPropertyById(propertyId)
 }
@@ -403,6 +516,8 @@ export async function updateProperty(id, patch) {
       ErrorCodes.PROPERTY_NOT_FOUND,
     )
 
+  let detachedPublicIds = []
+  let attachedPublicIds = []
   await run(() =>
     db.transaction(async (tx) => {
       await tx
@@ -410,13 +525,16 @@ export async function updateProperty(id, patch) {
         .set(buildPatchValues(patch))
         .where(eq(properties.id, id))
       if (Array.isArray(patch.images)) {
-        await txReplaceImages(tx, id, patch.images)
+        const result = await txSyncImages(tx, id, patch.images)
+        detachedPublicIds = result.detachedPublicIds
+        attachedPublicIds = result.attachedPublicIds
       }
       if (Array.isArray(patch.amenities)) {
         await txReplaceAmenities(tx, id, patch.amenities)
       }
     }),
   )
+  reconcileProviderImages({ detachedPublicIds, attachedPublicIds })
   return getPropertyById(id)
 }
 

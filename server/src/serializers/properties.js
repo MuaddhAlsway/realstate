@@ -31,6 +31,7 @@ function serializeImages(images = []) {
   return images.map((img) => ({
     id: img.id,
     url: img.url,
+    publicId: img.publicId ?? null,
     altText: img.altText ?? null,
     displayOrder: img.displayOrder,
     isCover: img.isCover,

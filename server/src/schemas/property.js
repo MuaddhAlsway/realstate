@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { getMediaCloudName } from "../services/mediaService.js"
 
 /**
  * Property request validation.
@@ -12,6 +13,44 @@ import { z } from "zod"
 const uuid = () => z.uuid("must be a valid UUID")
 const optionalText = (max) => z.string().trim().max(max).nullish()
 const optionalInt = () => z.number().int().min(0).nullish()
+
+// Managed images (those carrying a provider `publicId`) must resolve to this
+// app's Cloudinary cloud (lazy: the cloud name comes from env in production,
+// from the media seam in tests). Legacy free-form URLs keep working.
+const cloudinaryImageBase = () => {
+  const cloudName = getMediaCloudName()
+  return cloudName
+    ? `https://res.cloudinary.com/${cloudName}/image/upload/`
+    : null
+}
+
+export const propertyImageSchema = z
+  .object({
+    // Existing row id — round-tripped so unchanged images are preserved
+    // (Phase 10 diff-based sync) instead of re-inserted.
+    id: uuid().optional(),
+    url: z.string().trim().min(1, "image url is required").max(2_000),
+    altText: z.string().trim().max(500).nullish(),
+    displayOrder: z.number().int().min(0).optional(),
+    isCover: z.boolean().optional(),
+    // Provider asset identity (Cloudinary public_id): nullable for legacy
+    // URL images, mandatory for every image the admin uploaded via the
+    // media pipeline so assets can be managed/deleted later.
+    publicId: z.string().trim().max(512).nullish(),
+  })
+  .strict()
+  .refine(
+    (img) => {
+      if (!img.publicId) return true
+      const base = cloudinaryImageBase()
+      return base === null || img.url.startsWith(base)
+    },
+    {
+      message:
+        "managed image URLs must be hosted on this application's media provider",
+      path: ["url"],
+    },
+  )
 
 export const propertyIdSchema = z.object({
   id: uuid(),
@@ -52,16 +91,7 @@ export const createPropertySchema = z.object({
   // `amenities` are NAMES which get resolved/upserted into the amenities
   // table; `images` replace the property's existing image set.
   images: z
-    .array(
-      z
-        .object({
-          url: z.string().trim().min(1, "image url is required").max(2_000),
-          altText: z.string().trim().max(500).nullish(),
-          displayOrder: z.number().int().min(0).optional(),
-          isCover: z.boolean().optional(),
-        })
-        .strict(),
-    )
+    .array(propertyImageSchema)
     .max(30, "at most 30 images per property")
     .optional(),
   amenities: z
