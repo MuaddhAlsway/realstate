@@ -24,6 +24,11 @@ export const ErrorCodes = Object.freeze({
   FAVORITE_NOT_FOUND: "FAVORITE_NOT_FOUND",
   // Phase 07 — viewing requests
   VIEWING_NOT_FOUND: "VIEWING_NOT_FOUND",
+  // Phase 10 — media pipeline
+  RATE_LIMITED: "RATE_LIMITED",
+  MEDIA_NOT_CONFIGURED: "MEDIA_NOT_CONFIGURED",
+  MEDIA_PROVIDER_ERROR: "MEDIA_PROVIDER_ERROR",
+  MEDIA_NOT_FOUND: "MEDIA_NOT_FOUND",
 })
 
 /** Default human-readable message per HTTP status (used for untyped errors). */

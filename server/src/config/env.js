@@ -46,6 +46,42 @@ if (IS_PRODUCTION && !isDefined(process.env.JWT_SECRET)) {
   throw new Error("JWT_SECRET must be set in production")
 }
 
+// Phase 10 — Cloudinary media provider. Public identifiers (cloud name, API
+// key) are allowed to reach the browser for signed direct uploads; the API
+// SECRET must never be exposed to the frontend. Production refuses to boot
+// without the full set so the admin media pipeline cannot silently degrade.
+export const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME
+export const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY
+export const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET
+
+export const CLOUDINARY_CONFIGURED =
+  isDefined(CLOUDINARY_CLOUD_NAME) &&
+  isDefined(CLOUDINARY_API_KEY) &&
+  isDefined(CLOUDINARY_API_SECRET)
+
+export const MEDIA_UPLOAD_MAX_BYTES = 10 * 1024 * 1024 // 10 MiB per image
+export const MEDIA_UPLOAD_TTL_SECONDS = 10 * 60 // signature validity window
+export const MEDIA_ORPHAN_AGE_HOURS = 24 // pending uploads older than this are eligible
+
+if (
+  IS_PRODUCTION &&
+  (!isDefined(CLOUDINARY_CLOUD_NAME) ||
+    !isDefined(CLOUDINARY_API_KEY) ||
+    !isDefined(CLOUDINARY_API_SECRET))
+) {
+  throw new Error(
+    "CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET must be set in production",
+  )
+}
+
+// Phase 10 — admin bootstrap secret. The seeded admin account's password is
+// never hardcoded into source control: in production the seed refuses to run
+// without SEED_ADMIN_PASSWORD. Development/test fall back to a clearly
+// non-production fixture so CI and local flows keep working.
+export const SEED_ADMIN_PASSWORD =
+  process.env.SEED_ADMIN_PASSWORD ||
+  (IS_PRODUCTION ? undefined : "Estate-Dev-Admin-DevOnly!")
+
 if (
   IS_PRODUCTION &&
   (!isDefined(process.env.CORS_ORIGINS) ||

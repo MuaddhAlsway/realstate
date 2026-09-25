@@ -24,6 +24,7 @@
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "argon2": "^0.45.1",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.3",
     "express": "^5.2.1",

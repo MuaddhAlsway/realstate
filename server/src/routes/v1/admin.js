@@ -6,6 +6,7 @@ import {
 } from "../../middleware/validate.js"
 import { requireAuth, requireRole } from "../../middleware/auth.js"
 import { contentSectionParamSchema } from "../../schemas/content.js"
+import { uploadAuthorizationSchema } from "../../schemas/media.js"
 import {
   adminAgentParamSchema,
   updateAdminAgentSchema,
@@ -14,6 +15,8 @@ import {
 } from "../../schemas/admin.js"
 import { viewingQuerySchema } from "../../schemas/viewing.js"
 import * as adminController from "../../controllers/v1/admin.js"
+import * as mediaController from "../../controllers/v1/media.js"
+import { createRateLimiter } from "../../middleware/rateLimit.js"
 
 /**
  * /api/v1/admin — production admin API (Phase 09).
@@ -24,6 +27,9 @@ import * as adminController from "../../controllers/v1/admin.js"
  * property listings (every status), the agent/user directories, reference
  * catalogs for form options, and CMS section writes.
  *
+ * Phase 10 media routes live here too (upload authorization + orphan sweep)
+ * so they inherit the same ADMIN gate, plus an in-memory rate limiter.
+ *
  * Property create/update/delete intentionally stay on the shared
  * /api/v1/properties routes (AGENT|ADMIN) so the admin UI exercises the
  * same code paths as agents.
@@ -31,6 +37,19 @@ import * as adminController from "../../controllers/v1/admin.js"
 const router = Router()
 
 router.use(requireAuth, requireRole("ADMIN"))
+
+// Phase 10 — upload authorization must never be spammable by one account.
+const mediaLimiter = createRateLimiter()
+
+router.post(
+  "/media/upload-authorize",
+  mediaLimiter,
+  validate(uploadAuthorizationSchema),
+  mediaController.uploadAuthorization,
+)
+
+router.get("/media/orphans", mediaLimiter, mediaController.listOrphans)
+router.delete("/media/orphans", mediaLimiter, mediaController.cleanOrphans)
 
 router.get("/dashboard", adminController.dashboard)
 
