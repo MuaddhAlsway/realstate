@@ -2,6 +2,7 @@ import { Link } from "react-router-dom"
 import { agents } from "../data/properties"
 import { useReveal } from "../hooks/useReveal"
 import { useSiteContent } from "../services/siteContent"
+import { mediaUrl } from "../services/media"
 
 export default function About() {
   const ref = useReveal<HTMLDivElement>()
@@ -71,7 +72,7 @@ export default function About() {
           data-frame
         >
           <img
-            src={about.image}
+            src={mediaUrl(about.image, { width: 1920 })}
             alt={about.imageAlt}
             className="w-full h-full object-cover"
             loading="lazy"

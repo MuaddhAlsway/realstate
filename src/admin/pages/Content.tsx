@@ -4,6 +4,8 @@ import {
   type ContentSectionName,
 } from "../../services/admin"
 import { CONTENT_DEFAULTS, type SiteContent } from "../../services/siteContent"
+import { MediaUploader } from "../MediaUploader"
+import { mediaThumb, type UploadResult } from "../../services/media"
 import { useToast } from "../Toast"
 import { Button, Spinner, TextInput, Textarea } from "../ui"
 
@@ -187,6 +189,7 @@ type FieldSpec =
   | { type: "stats"; key: string; label: string }
   | { type: "numbered"; key: string; label: string }
   | { type: "links"; key: string; label: string }
+  | { type: "image"; key: string; publicIdKey: string; label: string }
 
 const SECTION_FIELDS: Record<ContentSectionName, FieldSpec[]> = {
   home: [
@@ -195,7 +198,7 @@ const SECTION_FIELDS: Record<ContentSectionName, FieldSpec[]> = {
     { type: "string", key: "heroLine2", label: "Hero line 2" },
     { type: "string", key: "heroLine3", label: "Hero line 3" },
     { type: "string", key: "heroDescription", label: "Hero description" },
-    { type: "string", key: "heroImage", label: "Hero image URL" },
+    { type: "image", key: "heroImage", publicIdKey: "heroImagePublicId", label: "Hero image" },
     { type: "string", key: "heroImageAlt", label: "Hero image alt" },
     { type: "string", key: "showcaseEyebrow", label: "Showcase eyebrow" },
     { type: "string", key: "showcaseHint", label: "Showcase hint" },
@@ -220,7 +223,7 @@ const SECTION_FIELDS: Record<ContentSectionName, FieldSpec[]> = {
     { type: "textarea", key: "intro", label: "Intro" },
     { type: "textarea", key: "body1", label: "Body 1" },
     { type: "textarea", key: "body2", label: "Body 2" },
-    { type: "string", key: "image", label: "Image URL" },
+    { type: "image", key: "image", publicIdKey: "imagePublicId", label: "Image" },
     { type: "string", key: "imageAlt", label: "Image alt" },
     { type: "string", key: "valuesEyebrow", label: "Values eyebrow" },
     { type: "numbered", key: "values", label: "Values" },
@@ -269,6 +272,57 @@ const SECTION_FIELDS: Record<ContentSectionName, FieldSpec[]> = {
     { type: "string", key: "ogTitle", label: "OpenGraph title" },
     { type: "textarea", key: "ogDescription", label: "OpenGraph description" },
   ],
+}
+
+function ImageField({ label, value, onChange }: {
+  label: string
+  value: {
+    url: string
+    publicIdKey: string
+    publicId: string
+  }
+  onChange: (patch: AnyRecord) => void
+}) {
+  return (
+    <div>
+      <span className="block text-[11px] tracking-[0.18em] uppercase font-light mb-2 text-[#6B6560]">
+        {label}
+      </span>
+      {value.url && (
+        <img
+          src={mediaThumb(value.url)}
+          alt=""
+          className="h-40 w-full object-cover mb-3"
+          loading="lazy"
+        />
+      )}
+      <TextInput
+        value={value.url}
+        onChange={(url) =>
+          // Pasting a URL is always an explicit switch to a legacy (non-
+          // managed) image — clear the provider ref so the old uploaded
+          // asset is retired on the next publish.
+          onChange({ [value.publicIdKey]: "", url })
+        }
+        placeholder="Image URL"
+      />
+      <div className="mt-3">
+        <MediaUploader
+          purpose="cms"
+          multiple={false}
+          label="Upload an image"
+          onComplete={(results: UploadResult[]) => {
+            const result = results[0]
+            if (!result) return
+            onChange({
+              url: result.url,
+              [value.publicIdKey]: result.publicId,
+            })
+          }}
+        />
+      </div>
+    </div>
+  )
 }
 
 function EditorField({ spec, value, onChange }: {
@@ -327,6 +381,21 @@ function EditorField({ spec, value, onChange }: {
           fields={LINK_FIELDS}
           value={Array.isArray(current) ? (current as AnyRecord[]) : []}
           onChange={(next) => onChange({ [spec.key]: next })}
+        />
+      )
+    case "image":
+      return (
+        <ImageField
+          label={spec.label}
+          value={{
+            url: typeof current === "string" ? current : "",
+            publicIdKey: spec.publicIdKey,
+            publicId:
+              typeof value[spec.publicIdKey] === "string"
+                ? (value[spec.publicIdKey] as string)
+                : "",
+          }}
+          onChange={onChange}
         />
       )
   }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   adminApi,
@@ -12,6 +12,8 @@ import {
   type PropertyStatus,
   type PropertyType,
 } from "../../services/admin"
+import { MediaUploader } from "../MediaUploader"
+import { authorizeUpload, uploadFile, mediaThumb, type UploadResult } from "../../services/media"
 import { useToast } from "../Toast"
 import {
   Button,
@@ -110,7 +112,9 @@ function formFromDetail(d: AdminPropertyDetail): FormState {
     agentId: d.agent?.id ?? "",
     neighborhoodId: d.neighborhood?.id ?? "",
     images: d.images.map((image) => ({
+      id: image.id,
       url: image.url,
+      publicId: image.publicId,
       altText: image.altText,
       displayOrder: image.displayOrder,
       isCover: image.isCover,
@@ -146,9 +150,11 @@ function buildInput(form: FormState): AdminPropertyInput {
     agentId: form.agentId || null,
     neighborhoodId: form.neighborhoodId || null,
     images: form.images.map((image, index) => ({
+      id: image.id,
       url: image.url.trim(),
+      publicId: image.publicId?.trim() ? image.publicId.trim() : null,
       altText: image.altText?.trim() === "" ? null : image.altText?.trim(),
-      displayOrder: image.displayOrder ?? index,
+      displayOrder: index,
       isCover: image.isCover ?? false,
     })),
     amenities: form.amenities,
@@ -183,6 +189,11 @@ function ImageManager({
   images: AdminImageInput[]
   onChange: (images: AdminImageInput[]) => void
 }) {
+  const { toast } = useToast()
+  const replaceInputRef = useRef<HTMLInputElement | null>(null)
+  const [replaceTarget, setReplaceTarget] = useState<number | null>(null)
+  const [replacing, setReplacing] = useState(false)
+
   const update = (index: number, patch: Partial<AdminImageInput>) => {
     const next = images.map((image, i) => (i === index ? { ...image, ...patch } : image))
     onChange(next)
@@ -190,32 +201,69 @@ function ImageManager({
   const remove = (index: number) => onChange(images.filter((_, i) => i !== index))
   const cover = (index: number) =>
     onChange(images.map((image, i) => ({ ...image, isCover: i === index })))
+  const move = (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= images.length) return
+    const next = [...images]
+    const [row] = next.splice(index, 1)
+    next.splice(target, 0, row)
+    onChange(next)
+  }
+
+  const beginReplace = (index: number) => {
+    setReplaceTarget(index)
+    replaceInputRef.current?.click()
+  }
+
+  const applyReplace = async (file: File | undefined) => {
+    if (!file || replaceTarget == null) return
+    setReplaceTarget(null)
+    setReplacing(true)
+    try {
+      const auth = await authorizeUpload("property")
+      const media = await uploadFile(auth, file)
+      update(replaceTarget, { url: media.secure_url, publicId: media.public_id })
+      toast("Image replaced")
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Replace failed")
+    } finally {
+      setReplacing(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3">
       {images.length === 0 && (
         <p className="text-xs font-light text-[#A09890]">
-          No images yet — add at least one before saving.
+          No images yet — upload below or add a URL before saving.
         </p>
       )}
       {images.map((image, index) => (
         <div
-          key={index}
+          key={image.id ?? `${image.url}-${index}`}
           className="grid grid-cols-[auto_1fr_1fr_auto] gap-3 items-center p-3"
           style={{ backgroundColor: "#EDE6D6" }}
         >
-          <button
-            type="button"
-            onClick={() => cover(index)}
-            title={image.isCover ? "Cover image" : "Set as cover"}
-            className="w-9 h-9 flex items-center justify-center text-lg cursor-pointer"
-            style={{
-              backgroundColor: image.isCover ? "#C9A96E28" : "transparent",
-              color: image.isCover ? "#8a6d38" : "#A09890",
-            }}
-          >
-            {image.isCover ? "★" : "☆"}
-          </button>
+          <div className="flex flex-col gap-1 items-center">
+            <img
+              src={mediaThumb(image.url)}
+              alt=""
+              className="w-14 h-10 object-cover"
+              loading="lazy"
+            />
+            <button
+              type="button"
+              onClick={() => cover(index)}
+              title={image.isCover ? "Cover image" : "Set as cover"}
+              className="w-8 h-8 flex items-center justify-center text-lg cursor-pointer"
+              style={{
+                backgroundColor: image.isCover ? "#C9A96E28" : "transparent",
+                color: image.isCover ? "#8a6d38" : "#A09890",
+              }}
+            >
+              {image.isCover ? "★" : "☆"}
+            </button>
+          </div>
           <TextInput
             value={image.url}
             onChange={(url) => update(index, { url })}
@@ -226,22 +274,87 @@ function ImageManager({
             onChange={(altText) => update(index, { altText })}
             placeholder="Alt text"
           />
-          <button
-            type="button"
-            onClick={() => remove(index)}
-            aria-label="Remove image"
-            className="text-[#A03A2E] text-xl cursor-pointer"
-          >
-            ×
-          </button>
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-1 justify-end">
+              <button
+                type="button"
+                onClick={() => move(index, -1)}
+                disabled={index === 0}
+                aria-label="Move image earlier"
+                className="w-7 h-7 cursor-pointer disabled:opacity-30"
+                style={{ color: "#6B6560" }}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => move(index, 1)}
+                disabled={index === images.length - 1}
+                aria-label="Move image later"
+                className="w-7 h-7 cursor-pointer disabled:opacity-30"
+                style={{ color: "#6B6560" }}
+              >
+                ↓
+              </button>
+            </div>
+            <div className="flex gap-1 justify-end">
+              <button
+                type="button"
+                onClick={() => beginReplace(index)}
+                disabled={replacing}
+                aria-label="Replace image"
+                className="text-xs tracking-[0.1em] uppercase font-light px-1 cursor-pointer"
+                style={{ color: "#8a6d38" }}
+              >
+                ↻ Replace
+              </button>
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                aria-label="Remove image"
+                className="text-[#A03A2E] text-xl cursor-pointer leading-none"
+              >
+                ×
+              </button>
+            </div>
+          </div>
         </div>
       ))}
-      <Button
-        variant="ghost"
-        onClick={() => onChange([...images, { url: "", isCover: images.length === 0 }])}
-      >
-        + Add image
-      </Button>
+      {replacing && (
+        <p className="text-xs font-light text-[#8a6d38]">Replacing image…</p>
+      )}
+
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/avif"
+        className="hidden"
+        onChange={(e) => {
+          void applyReplace(e.target.files?.[0])
+          e.target.value = ""
+        }}
+      />
+
+      <div className="flex flex-col gap-1">
+        <MediaUploader
+          purpose="property"
+          onComplete={(results: UploadResult[]) => {
+            const added = results.map((result) => ({
+              url: result.url,
+              publicId: result.publicId,
+              isCover: images.length === 0,
+            }))
+            onChange([...images, ...added])
+          }}
+        />
+        <Button
+          variant="ghost"
+          onClick={() => onChange([...images, { url: "", isCover: images.length === 0 }])}
+        >
+          + Add image by URL
+        </Button>
+      </div>
+
       {images.filter((image) => image.isCover).length > 1 ? (
         <p className="text-xs font-light text-[#A03A2E]">
           Only one image can be the cover — the server rejects multiple covers.
@@ -322,6 +435,10 @@ export default function PropertyForm({ mode }: { mode: "new" | "edit" }) {
     }
     if (images.length === 0) {
       setError("Add at least one image before saving.")
+      return
+    }
+    if (images.some((image) => !image.url.trim())) {
+      setError("Every image needs a URL — finish the uploads or fill the URLs.")
       return
     }
     if (images.filter((image) => image.isCover).length > 1) {
@@ -563,7 +680,7 @@ export default function PropertyForm({ mode }: { mode: "new" | "edit" }) {
         </div>
 
         <div>
-          <Field label="Images" hint="Mark a cover with the star. The first image becomes the cover when none is marked.">
+          <Field label="Images" hint="Upload images directly (JPG · PNG · WEBP · AVIF). Mark a cover with the star; the first image becomes the cover when none is marked.">
             <ImageManager images={form.images} onChange={(images) => setForm({ images })} />
           </Field>
         </div>

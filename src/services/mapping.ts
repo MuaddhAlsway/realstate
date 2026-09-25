@@ -1,4 +1,11 @@
 import type { Agent, Property, ViewingRequest } from "../data/properties"
+import { mediaUrl } from "./media"
+
+/**
+ * Public image delivery width. Res.cloudinary.com URLs get w_<this>,q_auto,
+ * f_auto; legacy free-form URLs pass through untouched.
+ */
+const PUBLIC_IMAGE_WIDTH = 1280
 
 function formatPrice(n: number): string {
   if (n >= 1_000_000) return `SAR ${(n / 1_000_000).toFixed(2)}M`
@@ -42,8 +49,13 @@ export function mapProperty(value: unknown): Property {
         typeof img === "string" ? img : img?.url ?? "",
       )
     : []
-  const images = wireImages.filter(Boolean)
-  const cover = (w?.coverImage as string) ?? images[0] ?? ""
+  const images = wireImages
+    .filter(Boolean)
+    .map((src) => mediaUrl(src, { width: PUBLIC_IMAGE_WIDTH }))
+  const cover = mediaUrl(
+    (w?.coverImage as string) ?? wireImages[0] ?? "",
+    { width: PUBLIC_IMAGE_WIDTH },
+  )
   const year =
     typeof w?.createdAt === "string"
       ? Number(w.createdAt.slice(0, 4)) || 2025

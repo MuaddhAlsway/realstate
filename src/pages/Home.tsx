@@ -18,6 +18,7 @@ import {
 } from "../data/properties"
 import { applyPropertyFilters, type PropertyQuery } from "../utils/properties"
 import { useSiteContent } from "../services/siteContent"
+import { mediaUrl } from "../services/media"
 
 const FLAGSHIP: Property =
   properties.find((p) => p.listingType === "buy") ?? properties[0]
@@ -104,7 +105,7 @@ function Hero() {
       >
         <img
           data-hero-image
-          src={home.heroImage}
+          src={mediaUrl(home.heroImage, { width: 1920 })}
           alt={home.heroImageAlt}
           className="w-full h-full object-cover opacity-0"
           fetchPriority="high"

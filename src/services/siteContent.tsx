@@ -47,6 +47,8 @@ export interface HomeContent {
   heroLine3: string
   heroDescription: string
   heroImage: string
+  // Provider asset id for media-uploaded heroes (private; "" for URLs).
+  heroImagePublicId?: string
   heroImageAlt: string
   showcaseEyebrow: string
   showcaseHint: string
@@ -73,6 +75,8 @@ export interface AboutContent {
   body1: string
   body2: string
   image: string
+  // Provider asset id for media-uploaded about images ("" for URLs).
+  imagePublicId?: string
   imageAlt: string
   valuesEyebrow: string
   values: NumberedItem[]
@@ -143,6 +147,7 @@ export const CONTENT_DEFAULTS: SiteContent = {
       "Over 250 curated residences in Jeddah's most sought-after addresses.",
     heroImage:
       "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=1920&h=1200&fit=crop&auto=format",
+    heroImagePublicId: "",
     heroImageAlt: "A modern coastal villa at dusk on the Jeddah waterfront",
     showcaseEyebrow: "Explore Exceptional Homes",
     showcaseHint: "Scroll or drag to explore",
@@ -204,6 +209,7 @@ export const CONTENT_DEFAULTS: SiteContent = {
       "Our team combines deep local knowledge with international perspectives, allowing us to serve clients from across Saudi Arabia and the world with the same precision and discretion.",
     image:
       "https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=1920&h=700&fit=crop&auto=format",
+    imagePublicId: "",
     imageAlt: "Estate office architecture",
     valuesEyebrow: "Our Values",
     values: [

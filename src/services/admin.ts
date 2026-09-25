@@ -58,6 +58,7 @@ export interface AdminPropertySummary {
 export interface AdminImageMeta {
   id: string
   url: string
+  publicId: string | null
   altText: string | null
   displayOrder: number
   isCover: boolean
@@ -120,7 +121,12 @@ export interface AdminPropertyInput {
 }
 
 export interface AdminImageInput {
+  // Existing row id — round-tripped so the server preserves unchanged rows
+  // (Phase 10 diff-based sync) instead of replacing them.
+  id?: string
   url: string
+  // Provider asset id for media-uploaded images (null for legacy URLs).
+  publicId?: string | null
   altText?: string | null
   displayOrder?: number
   isCover?: boolean
