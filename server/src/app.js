@@ -4,6 +4,7 @@ import { NODE_ENV, CORS_ORIGINS } from "./config/env.js"
 import routes from "./routes/index.js"
 import v1Router from "./routes/v1/index.js"
 import healthRouter from "./routes/health.js"
+import rootRouter from "./routes/root.js"
 import { notFound, errorHandler } from "./middleware/error.js"
 
 // Lightweight request log for operations: method, path, status, duration and
@@ -45,6 +46,7 @@ export function createApp() {
 
   if (NODE_ENV !== "test") app.use(requestLogger)
 
+  app.use("/", rootRouter)
   app.use("/api/health", healthRouter)
   app.use("/api/v1", v1Router)
   app.use("/api", routes)
