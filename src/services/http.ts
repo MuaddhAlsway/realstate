@@ -13,8 +13,9 @@ import {
  * server (e.g. http://localhost:4000) to go remote: auth, favorites and
  * viewings then hit the real /api/v1 endpoints with Bearer token auth.
  */
-export const API_BASE: string =
+export const API_BASE: string = (
   import.meta.env.VITE_API_URL as string | undefined ?? ""
+).replace(/\/+$/, "")
 
 /** True when the frontend is wired to the real backend. */
 export const REMOTE = Boolean(API_BASE)
