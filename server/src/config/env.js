@@ -37,6 +37,7 @@ export const CORS_ORIGINS = isDefined(process.env.CORS_ORIGINS)
   ? String(process.env.CORS_ORIGINS)
       .split(",")
       .map((s) => s.trim())
+      .map((s) => s.replace(/\/+$/, ""))
       .filter(Boolean)
   : ["*"]
 
