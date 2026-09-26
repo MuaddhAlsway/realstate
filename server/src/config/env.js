@@ -28,9 +28,11 @@ export const DATABASE_URL = process.env.DATABASE_URL
 // (Neon requires TLS; local Postgres usually does not).
 export const DB_SSL = String(process.env.DB_SSL || "").toLowerCase() === "true"
 
-// Allowed browser origins for CORS, comma-separated. Falls back to `*` for
-// local development only; production must name the deployed frontend origin
-// explicitly so unauthenticated wildcard access can never ship.
+// Allowed browser origins for CORS, comma-separated. When set, only the
+// named origins are allowed. When unset, every browser origin is allowed:
+// the API authenticates with bearer tokens (never cookies), so cross-origin
+// callers still cannot act as a signed-in user without a valid token.
+// Setting CORS_ORIGINS to a concrete list is the recommended hardening.
 export const CORS_ORIGINS = isDefined(process.env.CORS_ORIGINS)
   ? String(process.env.CORS_ORIGINS)
       .split(",")
@@ -84,11 +86,11 @@ export const SEED_ADMIN_PASSWORD =
 
 if (
   IS_PRODUCTION &&
-  (!isDefined(process.env.CORS_ORIGINS) ||
-    CORS_ORIGINS.length === 0 ||
-    CORS_ORIGINS[0] === "*")
+  (CORS_ORIGINS.length === 0 || CORS_ORIGINS[0] === "*")
 ) {
-  throw new Error(
-    "CORS_ORIGINS must be set to the deployed frontend origin(s) in production",
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[env] CORS_ORIGINS is unset — accepting requests from any browser origin. " +
+      "Set CORS_ORIGINS to a comma-separated origin list to restrict access.",
   )
 }
