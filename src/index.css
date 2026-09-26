@@ -314,10 +314,21 @@ body {
   z-index: 200;
   background: var(--primary);
   transform: translateY(-100%);
-  transition: transform 0.7s cubic-bezier(0.76, 0, 0.24, 1);
+  /* Inert when closed: never interactive, never painted as an overlay even
+     if the transform is lost on some browser/GPU path. */
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 0.7s cubic-bezier(0.76, 0, 0.24, 1),
+    visibility 0s linear 0.7s;
 }
 .fullscreen-menu.open {
   transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    transform 0.7s cubic-bezier(0.76, 0, 0.24, 1),
+    visibility 0s;
 }
 
 /* ── Custom cursor ──────────────────────────────────────────

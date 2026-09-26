@@ -35,8 +35,13 @@ export default function Navigation() {
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : ""
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false)
+    }
+    if (menuOpen) window.addEventListener("keydown", onKey)
     return () => {
       document.body.style.overflow = ""
+      window.removeEventListener("keydown", onKey)
     }
   }, [menuOpen])
 
