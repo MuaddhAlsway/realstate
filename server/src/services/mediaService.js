@@ -1,5 +1,4 @@
-import cloudinaryDefault from "cloudinary"
-import { Cloudinary } from "cloudinary"
+import cloudinary from "cloudinary"
 import { eq, isNotNull } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import * as schema from "../db/schema/index.js"
@@ -48,7 +47,7 @@ export const ALLOWED_IMAGE_FORMATS = ["jpg", "jpeg", "png", "webp", "avif"]
 /** Thrown when the provider rejects/misbehaves (keeps SDK noise out). */
 class ProviderError extends Error {}
 
-/** Path-safe references: cloudinary instance + a tiny command surface. */
+/** Path-safe references: cloudinary singleton + a tiny command surface. */
 function createRealClient() {
   const config = {
     cloud_name: CLOUDINARY_CLOUD_NAME,
@@ -56,25 +55,28 @@ function createRealClient() {
     api_secret: CLOUDINARY_API_SECRET,
     secure: true,
   }
-  const instance = new Cloudinary(config)
+  // The SDK's v2 singleton is the documented entry point — the package is
+  // CommonJS with no named `Cloudinary` export, so `import { Cloudinary }`
+  // crashes under native Node ESM. Configure the singleton once.
+  cloudinary.v2.config(config)
   return {
     sign: (params) =>
-      cloudinaryDefault.utils.api_sign_request(params, config.api_secret),
+      cloudinary.v2.utils.api_sign_request(params, config.api_secret),
     destroy: (publicId) =>
-      instance.uploader.destroy(publicId, { invalidate: true }),
+      cloudinary.v2.uploader.destroy(publicId, { invalidate: true }),
     removeTag: (publicIds) =>
-      instance.uploader.remove_tag(PENDING_TAG, publicIds, {
+      cloudinary.v2.uploader.remove_tag(PENDING_TAG, publicIds, {
         resource_type: "image",
       }),
     listPending: async () => {
-      const res = await instance.api.resources_by_tag(PENDING_TAG, {
+      const res = await cloudinary.v2.api.resources_by_tag(PENDING_TAG, {
         resource_type: "image",
         max_results: 500,
       })
       return res?.resources ?? []
     },
     destroyMany: (publicIds) =>
-      instance.api.delete_resources(publicIds, {
+      cloudinary.v2.api.delete_resources(publicIds, {
         resource_type: "image",
         invalidate: true,
       }),
