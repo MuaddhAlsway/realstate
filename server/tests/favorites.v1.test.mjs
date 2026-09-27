@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import request from "supertest"
 import { randomUUID } from "node:crypto"
-import { app, cleanAuthUsers, getTestDb, bearer } from "./helpers.mjs"
+import { app, cleanAuthUsers, getTestDb, bearer, adminToken } from "./helpers.mjs"
 
 /**
  * Phase 06 — /api/v1/favorites: the signed-in user's saved properties.
@@ -61,13 +61,15 @@ beforeAll(async () => {
   expect(res.status).toBe(201)
   token = res.body.data.accessToken
 
-  // Own throwaway listing so no concurrent suite can remove it mid-run.
+  // Own throwaway listing so no concurrent suite can remove it mid-run
+  // (property mutations require ADMIN — Phase 11).
   const agent = await createAgent(uniqueEmail("agent"))
   const aLogin = await request(app)
     .post(`${AUTH}/login`)
     .send({ email: agent.email, password: agent.password })
   expect(aLogin.status).toBe(200)
-  const aToken = aLogin.body.data.accessToken
+
+  const adminT = await adminToken()
 
   const db = getTestDb()
   const { users } = await import("../src/db/schema/index.js")
@@ -81,7 +83,7 @@ beforeAll(async () => {
   for (let i = 0; i < 2; i++) {
     const created = await request(app)
       .post(PROPERTIES)
-      .set(bearer(aToken))
+      .set(bearer(adminT))
       .send({
         title: `Favorites Test Villa ${i}`,
         slug: `fav-test-${randomUUID().slice(0, 8)}`,

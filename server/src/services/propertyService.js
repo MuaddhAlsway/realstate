@@ -399,17 +399,23 @@ export async function listProperties(query = {}) {
   const db = requireDb()
   const { where, orderBy, limit, offset } = buildPropertyQuery(query)
 
+  // Phase 11 — the public catalog only ever shows available listings.
+  // SOLD / RENTED / RESERVED / PENDING / DRAFT / ARCHIVED are management
+  // states and must not surface to shoppers. (Deals flip properties to
+  // SOLD / RENTED, which makes them disappear here automatically.)
+  const publicWhere = and(where, eq(properties.status, "AVAILABLE"))
+
   const [rows, totals] = await Promise.all([
     run(() =>
       db.query.properties.findMany({
-        where,
+        where: publicWhere,
         orderBy,
         limit,
         offset,
         with: listRelationColumns,
       }),
     ),
-    run(() => db.select({ n: count() }).from(properties).where(where)),
+    run(() => db.select({ n: count() }).from(properties).where(publicWhere)),
   ])
 
   const total = totals[0]?.n ?? 0

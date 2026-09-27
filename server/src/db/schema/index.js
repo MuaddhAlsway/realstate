@@ -42,9 +42,11 @@ export const propertyTypeEnum = pgEnum("property_type", [
 ])
 export const propertyStatusEnum = pgEnum("property_status", [
   "AVAILABLE",
+  "RESERVED",
   "PENDING",
   "SOLD",
   "RENTED",
+  "ARCHIVED",
   "DRAFT",
 ])
 export const viewingStatusEnum = pgEnum("viewing_status", [
@@ -52,6 +54,25 @@ export const viewingStatusEnum = pgEnum("viewing_status", [
   "CONFIRMED",
   "COMPLETED",
   "CANCELLED",
+])
+// Phase 11 — client management workflow
+export const inquiryStatusEnum = pgEnum("inquiry_status", [
+  "PENDING",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
+])
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "INQUIRY",
+  "MESSAGE",
+  "DEAL",
+  "SYSTEM",
+])
+export const messageSenderEnum = pgEnum("message_sender", [
+  "CUSTOMER",
+  "AGENT",
+  "ADMIN",
+  "SYSTEM",
 ])
 
 // ── users ────────────────────────────────────────────────────────────────
@@ -331,11 +352,146 @@ export const siteContent = pgTable(
   ],
 )
 
+// ── inquiries (Phase 11: client management/deal pipeline) ───────────────
+// One inquiry per customer interest. The property's assigned agent owns the
+// deal; the customer can be a guest (denormalized contact columns) or a
+// signed-in user (linked via `userId`). Status history is immutable evidence
+// for the PENDING → IN_PROGRESS → COMPLETED (+ CANCELLED) workflow.
+export const inquiries = pgTable(
+  "inquiries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    propertyId: uuid("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id").references(() => agents.id, {
+      onDelete: "set null",
+    }),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    customerName: text("customer_name").notNull(),
+    customerEmail: text("customer_email").notNull(),
+    customerPhone: text("customer_phone"),
+    message: text("message").notNull(),
+    preferredContactMethod: text("preferred_contact_method").notNull().default("EMAIL"),
+    viewingDate: date("viewing_date"),
+    viewingTime: time("viewing_time"),
+    status: inquiryStatusEnum("status").notNull().default("PENDING"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedByUserId: uuid("completed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("inquiries_property_idx").on(t.propertyId),
+    index("inquiries_agent_idx").on(t.agentId),
+    index("inquiries_user_idx").on(t.userId),
+    index("inquiries_status_created_idx").on(t.status, t.createdAt),
+  ],
+)
+
+// 1:1 with every inquiry — the conversation/thread backing the deal.
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    inquiryId: uuid("inquiry_id")
+      .notNull()
+      .unique()
+      .references(() => inquiries.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("conversations_inquiry_idx").on(t.inquiryId)],
+)
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    senderId: uuid("sender_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    senderRole: messageSenderEnum("sender_role").notNull(),
+    content: text("content").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("messages_conversation_created_idx").on(t.conversationId, t.createdAt),
+  ],
+)
+
+// In-app notification feed — the agent (and customer) account's inbox. The
+// content is never executable; just a typed, readable feed entry.
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    inquiryId: uuid("inquiry_id").references(() => inquiries.id, {
+      onDelete: "set null",
+    }),
+    type: notificationTypeEnum("type").notNull(),
+    title: text("title").notNull(),
+    message: text("message"),
+    read: boolean("read").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("notifications_user_read_idx").on(t.userId, t.read),
+    index("notifications_created_idx").on(t.createdAt),
+  ],
+)
+
+// Audit trail of inquiry status transitions (creation included).
+export const inquiryStatusHistory = pgTable(
+  "inquiry_status_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    inquiryId: uuid("inquiry_id")
+      .notNull()
+      .references(() => inquiries.id, { onDelete: "cascade" }),
+    fromStatus: inquiryStatusEnum("from_status"),
+    toStatus: inquiryStatusEnum("to_status").notNull(),
+    changedByUserId: uuid("changed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("inquiry_history_inquiry_idx").on(t.inquiryId)],
+)
+
 // ── Relations (for joins + drizzle query builders in later phases) ──────
 export const usersRelations = relations(users, ({ many, one }) => ({
   favorites: many(favorites),
   viewingRequests: many(viewingRequests),
   refreshTokens: many(refreshTokens),
+  inquiries: many(inquiries),
+  sentMessages: many(messages, { relationName: "messages_sender" }),
+  notifications: many(notifications),
+  statusChanges: many(inquiryStatusHistory),
+  completedInquiries: many(inquiries, { relationName: "inquiries_completed_by" }),
   agent: one(agents, { fields: [users.id], references: [agents.userId] }),
 }))
 
@@ -346,6 +502,7 @@ export const agentsRelations = relations(agents, ({ many, one }) => ({
   }),
   properties: many(properties),
   viewingRequests: many(viewingRequests),
+  inquiries: many(inquiries),
 }))
 
 export const neighborhoodsRelations = relations(neighborhoods, ({ many }) => ({
@@ -365,6 +522,7 @@ export const propertiesRelations = relations(properties, ({ many, one }) => ({
   propertyAmenities: many(propertyAmenities),
   favorites: many(favorites),
   viewingRequests: many(viewingRequests),
+  inquiries: many(inquiries),
 }))
 
 export const propertyImagesRelations = relations(propertyImages, ({ one }) => ({
@@ -421,3 +579,76 @@ export const viewingRequestsRelations = relations(
 export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
   user: one(users, { fields: [refreshTokens.userId], references: [users.id] }),
 }))
+
+export const inquiriesRelations = relations(inquiries, ({ many, one }) => ({
+  property: one(properties, {
+    fields: [inquiries.propertyId],
+    references: [properties.id],
+  }),
+  agent: one(agents, {
+    fields: [inquiries.agentId],
+    references: [agents.id],
+  }),
+  user: one(users, {
+    fields: [inquiries.userId],
+    references: [users.id],
+  }),
+  completedBy: one(users, {
+    fields: [inquiries.completedByUserId],
+    references: [users.id],
+    relationName: "inquiries_completed_by",
+  }),
+  conversation: one(conversations, {
+    fields: [inquiries.id],
+    references: [conversations.inquiryId],
+  }),
+  history: many(inquiryStatusHistory),
+}))
+
+export const conversationsRelations = relations(
+  conversations,
+  ({ many, one }) => ({
+    inquiry: one(inquiries, {
+      fields: [conversations.inquiryId],
+      references: [inquiries.id],
+    }),
+    messages: many(messages),
+  }),
+)
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [messages.conversationId],
+    references: [conversations.id],
+  }),
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+    relationName: "messages_sender",
+  }),
+}))
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  inquiry: one(inquiries, {
+    fields: [notifications.inquiryId],
+    references: [inquiries.id],
+  }),
+}))
+
+export const inquiryStatusHistoryRelations = relations(
+  inquiryStatusHistory,
+  ({ one }) => ({
+    inquiry: one(inquiries, {
+      fields: [inquiryStatusHistory.inquiryId],
+      references: [inquiries.id],
+    }),
+    changedBy: one(users, {
+      fields: [inquiryStatusHistory.changedByUserId],
+      references: [users.id],
+    }),
+  }),
+)

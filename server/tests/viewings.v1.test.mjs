@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import request from "supertest"
 import { randomUUID } from "node:crypto"
-import { app, cleanAuthUsers, getTestDb, bearer } from "./helpers.mjs"
+import { app, cleanAuthUsers, getTestDb, bearer, adminToken } from "./helpers.mjs"
 
 /**
  * Phase 07 — /api/v1/viewings: viewing requests against listings.
@@ -104,9 +104,10 @@ beforeAll(async () => {
   })
   aAgentId = agentLink.agent.id
 
+  const adminT = await adminToken()
   const created = await request(app)
     .post(PROPERTIES)
-    .set(bearer(aToken))
+    .set(bearer(adminT))
     .send({
       ...propertyPayload(`view-test-${randomUUID().slice(0, 8)}`),
       agentId: aAgentId,

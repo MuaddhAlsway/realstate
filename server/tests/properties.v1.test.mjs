@@ -48,7 +48,10 @@ describe("GET /api/v1/properties", () => {
     const res = await request(app).get(URL).expect(200)
     expect(res.body.success).toBe(true)
     expect(Array.isArray(res.body.data)).toBe(true)
-    expect(res.body.data.length).toBeGreaterThanOrEqual(6)
+    // Phase 11 — the public catalog shows AVAILABLE listings only; one of
+    // the seeded rows is PENDING ("under contract") and stays hidden here.
+    expect(res.body.data.length).toBeGreaterThanOrEqual(5)
+    expect(res.body.data.every((p) => p.status === "AVAILABLE")).toBe(true)
     // Parallel suites (Phase 04/05) may interleave filtered fixtures, so anchor
     // shape assertions and the shared id/slug on a row from the seed rather
     // than data[0] (which may be an agent-less fixture from a concurrent file).

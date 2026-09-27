@@ -14,6 +14,7 @@ export type PropertyPurpose = "SALE" | "RENT"
 export type PropertyType = "VILLA" | "APARTMENT" | "PENTHOUSE" | "DUPLEX"
 export type ViewingStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED"
 export type UserRole = "USER" | "AGENT" | "ADMIN"
+export type InquiryStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
 
 export interface DashboardData {
   properties: {
@@ -31,6 +32,11 @@ export interface DashboardData {
     total: number
     byStatus: Record<ViewingStatus, number>
   }
+  inquiries: {
+    total: number
+    byStatus: Record<InquiryStatus, number>
+  }
+  deals: number
 }
 
 export interface AdminPropertySummary {
@@ -199,6 +205,51 @@ export interface AdminViewing {
   createdAt: string
 }
 
+export interface AdminInquiry {
+  id: string
+  status: InquiryStatus
+  customerName: string
+  customerEmail: string
+  customerPhone: string | null
+  preferredContactMethod: string
+  viewingDate: string | null
+  viewingTime: string | null
+  createdAt: string
+  updatedAt: string
+  completedAt: string | null
+  property: {
+    id: string, title: string, price: number, currency: string,
+    city: string, district: string | null, purpose: PropertyPurpose, status: PropertyStatus
+  } | null
+  agent: { id: string, name: string, email: string | null } | null
+  customer: { id: string, name: string, email: string } | null
+}
+
+export interface AdminDeal {
+  id: string
+  customerName: string
+  customerEmail: string
+  customerPhone: string | null
+  completedAt: string
+  createdAt: string
+  property: {
+    id: string, title: string, price: number, currency: string,
+    city: string, district: string | null, purpose: PropertyPurpose, status: PropertyStatus
+  } | null
+  agent: { id: string, name: string, email: string | null } | null
+  completedBy: { id: string, name: string, role: UserRole } | null
+}
+
+export interface CreateAgentInput {
+  name: string
+  email: string
+  password: string
+  role?: string | null
+  phone?: string | null
+  languages?: string | null
+  experienceYears?: number
+}
+
 export type ContentSectionName = "home" | "about" | "contact" | "footer" | "seo"
 export type SiteContent = Record<ContentSectionName, Record<string, unknown>>
 
@@ -280,6 +331,40 @@ export const adminApi = {
 
   amenities: () => http.get<AmenityOption[]>(`${ROOT}/admin/amenities`),
   neighborhoods: () => http.get<NeighborhoodOption[]>(`${ROOT}/admin/neighborhoods`),
+
+  inquiries: async (params: { status?: InquiryStatus, page?: number } = {}): Promise<Paginated<AdminInquiry>> => {
+    const qs = new URLSearchParams()
+    if (params.status) qs.set("status", params.status)
+    qs.set("page", String(params.page ?? 1))
+    qs.set("limit", "50")
+    const { data, meta } = await http.getEnvelope<AdminInquiry[]>(
+      `${ROOT}/admin/inquiries?${qs.toString()}`,
+    )
+    return {
+      items: data,
+      total: Number(meta?.total ?? 0),
+      page: Number(meta?.page ?? 1),
+      totalPages: Number(meta?.totalPages ?? 0),
+    }
+  },
+
+  deals: async (params: { page?: number } = {}): Promise<Paginated<AdminDeal>> => {
+    const qs = new URLSearchParams()
+    qs.set("page", String(params.page ?? 1))
+    qs.set("limit", "50")
+    const { data, meta } = await http.getEnvelope<AdminDeal[]>(
+      `${ROOT}/admin/deals?${qs.toString()}`,
+    )
+    return {
+      items: data,
+      total: Number(meta?.total ?? 0),
+      page: Number(meta?.page ?? 1),
+      totalPages: Number(meta?.totalPages ?? 0),
+    }
+  },
+
+  createAgent: (input: CreateAgentInput) =>
+    http.post<AdminAgent>(`${ROOT}/admin/agents`, input),
 }
 
 // ── CMS API ────────────────────────────────────────────────────────────

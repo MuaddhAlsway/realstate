@@ -38,7 +38,7 @@ export const adminPropertyQuerySchema = z
       .enum(["VILLA", "APARTMENT", "PENTHOUSE", "DUPLEX"])
       .optional(),
     status: z
-      .enum(["AVAILABLE", "PENDING", "SOLD", "RENTED", "DRAFT"])
+      .enum(["AVAILABLE", "RESERVED", "PENDING", "SOLD", "RENTED", "ARCHIVED", "DRAFT"])
       .optional(),
     search: z
       .string()

@@ -6,8 +6,10 @@ import * as adminService from "../../services/adminService.js"
 import * as propertyService from "../../services/propertyService.js"
 import * as viewingService from "../../services/viewingService.js"
 import * as contentService from "../../services/contentService.js"
+import * as inquiryService from "../../services/inquiryService.js"
 import { serializePropertyList } from "../../serializers/properties.js"
 import { serializeViewingList } from "../../serializers/viewings.js"
+import { serializeDealList, serializeInquiryListMany } from "../../serializers/inquiries.js"
 import {
   serializeAdminAgent,
   serializeAdminAgentList,
@@ -56,6 +58,37 @@ export const listAgents = asyncHandler(async (req, res) => {
 export const updateAgent = asyncHandler(async (req, res) => {
   const row = await adminService.updateAdminAgent(req.params.id, req.body)
   res.json({ success: true, data: serializeAdminAgent(row) })
+})
+
+export const createAgent = asyncHandler(async (req, res) => {
+  const { user, agent } = await adminService.createAgentAccount(req.body)
+  res.status(201).json({
+    success: true,
+    data: {
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      agent: serializeAdminAgent(agent),
+    },
+  })
+})
+
+export const listInquiries = asyncHandler(async (req, res) => {
+  const { items, total, page, limit, totalPages } =
+    await inquiryService.listAdminInquiries(req.parsedQuery)
+  res.json({
+    success: true,
+    data: serializeInquiryListMany(items),
+    meta: { page, limit, total, totalPages },
+  })
+})
+
+export const listDeals = asyncHandler(async (req, res) => {
+  const { items, total, page, limit, totalPages } =
+    await inquiryService.listDeals(req.parsedQuery)
+  res.json({
+    success: true,
+    data: serializeDealList(items),
+    meta: { page, limit, total, totalPages },
+  })
 })
 
 export const listUsers = asyncHandler(async (req, res) => {

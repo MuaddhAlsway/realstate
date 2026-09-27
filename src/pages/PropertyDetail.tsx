@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { useParams, Link, useLocation } from "react-router-dom"
-import {
-  properties,
-  type Property,
-  type Agent,
-} from "../data/properties"
+import { properties, type Property, type Agent } from "../data/properties"
 import { api } from "../services/api"
+import { inquiryApi } from "../services/inquiry"
 import { REMOTE } from "../services/http"
 import { PropertyCard } from "../components/property/PropertyCard"
 import { useReveal } from "../hooks/useReveal"
@@ -100,11 +97,35 @@ Thank you.`,
   const [status, setStatus] =
     useState<"idle" | "sending" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [inqForm, setInqForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+    preferred: "EMAIL" as "EMAIL" | "PHONE" | "WHATSAPP",
+    date: "",
+    time: "",
+  })
+  const [inqStatus, setInqStatus] =
+    useState<"idle" | "sending" | "success" | "error">("idle")
+  const [inqError, setInqError] = useState<string | null>(null)
+  const [createdInquiryId, setCreatedInquiryId] = useState("")
   const [mortgage, setMortgage] = useState({ years: 20, rate: 4.5 })
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [id])
+
+  // Prefill the inquiry form with the signed-in profile (kept blank in mock).
+  useEffect(() => {
+    if (user) {
+      setInqForm((prev) => ({
+        ...prev,
+        ...(prev.name ? {} : { name: user.name }),
+        ...(prev.email ? {} : { email: user.email }),
+      }))
+    }
+  }, [user])
 
   // Scroll lock while lightbox is open
   useEffect(() => {
@@ -163,7 +184,14 @@ Thank you.`,
         })
       }
       setStatus("success")
-      setForm({ name: "", email: "", phone: "", date: "", time: "", message: "" })
+      setForm({
+        name: "",
+        email: "",
+        phone: "",
+        date: "",
+        time: "",
+        message: "",
+      })
     } catch (err) {
       setStatus("error")
       setErrorMessage(
@@ -180,6 +208,32 @@ Thank you.`,
       : property.status === "new"
         ? "New"
         : "Under Contract"
+
+  const handleInquiry = async (e: FormEvent) => {
+    e.preventDefault()
+    setInqStatus("sending")
+    setInqError(null)
+    try {
+      const detail = await inquiryApi.create(property.id, {
+        name: inqForm.name,
+        email: inqForm.email,
+        ...(inqForm.phone ? { phone: inqForm.phone } : {}),
+        message: inqForm.message,
+        preferredContactMethod: inqForm.preferred,
+        ...(inqForm.date ? { viewingDate: inqForm.date } : {}),
+        ...(inqForm.time ? { viewingTime: inqForm.time } : {}),
+      })
+      setCreatedInquiryId(detail.id)
+      setInqStatus("success")
+    } catch (err) {
+      setInqStatus("error")
+      setInqError(
+        err instanceof Error
+          ? err.message
+          : "Could not send your inquiry. Please try again.",
+      )
+    }
+  }
 
   return (
     <div ref={ref} style={{ backgroundColor: "#F5F0E8", minHeight: "100vh" }}>
@@ -730,6 +784,188 @@ Thank you.`,
                   </form>
                 )}
               </div>
+
+              {REMOTE ? (
+                <div
+                  className="p-8 border"
+                  style={{ borderColor: "rgba(15,15,13,0.1)" }}
+                  data-reveal
+                >
+                  <h3
+                    className="text-heading-md mb-6"
+                    style={{ color: "#0F0F0D" }}
+                  >
+                    Send an Inquiry
+                  </h3>
+
+                  {inqStatus === "success" ? (
+                    <div className="flex flex-col gap-4 py-6">
+                      <p
+                        className="text-heading-md"
+                        style={{ color: "#0F0F0D" }}
+                      >
+                        Thank you.
+                      </p>
+                      <p
+                        className="text-sm font-light"
+                        style={{ color: "#6B6560" }}
+                      >
+                        Your inquiry has been sent to the advisor. Track the
+                        conversation and replies from your dashboard.
+                      </p>
+                      <Link
+                        to={`/dashboard/inquiries/${createdInquiryId}`}
+                        className="self-start mt-2 text-xs tracking-[0.25em] uppercase font-light transition-colors hover:text-[#C9A96E]"
+                        style={{ color: "#0F0F0D" }}
+                      >
+                        Open Conversation →
+                      </Link>
+                    </div>
+                  ) : (
+                    <form
+                      onSubmit={handleInquiry}
+                      className="flex flex-col gap-4"
+                    >
+                      <input
+                        type="text"
+                        required
+                        placeholder="Your name"
+                        value={inqForm.name}
+                        onChange={(e) =>
+                          setInqForm((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        className="w-full border-b py-3 text-sm font-light outline-none bg-transparent"
+                        style={{
+                          borderColor: "rgba(15,15,13,0.15)",
+                          color: "#0F0F0D",
+                        }}
+                      />
+                      <input
+                        type="email"
+                        required
+                        placeholder="Email address"
+                        value={inqForm.email}
+                        onChange={(e) =>
+                          setInqForm((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
+                        className="w-full border-b py-3 text-sm font-light outline-none bg-transparent"
+                        style={{
+                          borderColor: "rgba(15,15,13,0.15)",
+                          color: "#0F0F0D",
+                        }}
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Phone number"
+                        value={inqForm.phone}
+                        onChange={(e) =>
+                          setInqForm((prev) => ({
+                            ...prev,
+                            phone: e.target.value,
+                          }))
+                        }
+                        className="w-full border-b py-3 text-sm font-light outline-none bg-transparent"
+                        style={{
+                          borderColor: "rgba(15,15,13,0.15)",
+                          color: "#0F0F0D",
+                        }}
+                      />
+                      <select
+                        value={inqForm.preferred}
+                        onChange={(e) =>
+                          setInqForm((prev) => ({
+                            ...prev,
+                            preferred: e.target.value as typeof prev.preferred,
+                          }))
+                        }
+                        className="w-full border-b py-3 text-sm font-light outline-none bg-transparent cursor-pointer"
+                        style={{
+                          borderColor: "rgba(15,15,13,0.15)",
+                          color: "#0F0F0D",
+                        }}
+                      >
+                        <option value="EMAIL">Contact by email</option>
+                        <option value="PHONE">Contact by phone</option>
+                        <option value="WHATSAPP">Contact by WhatsApp</option>
+                      </select>
+                      <div className="flex gap-4">
+                        <input
+                          type="date"
+                          placeholder="Preferred date"
+                          value={inqForm.date}
+                          onChange={(e) =>
+                            setInqForm((prev) => ({
+                              ...prev,
+                              date: e.target.value,
+                            }))
+                          }
+                          className="w-full border-b py-3 text-sm font-light outline-none bg-transparent"
+                          style={{
+                            borderColor: "rgba(15,15,13,0.15)",
+                            color: "#0F0F0D",
+                          }}
+                        />
+                        <input
+                          type="time"
+                          placeholder="Time"
+                          value={inqForm.time}
+                          onChange={(e) =>
+                            setInqForm((prev) => ({
+                              ...prev,
+                              time: e.target.value,
+                            }))
+                          }
+                          className="w-full border-b py-3 text-sm font-light outline-none bg-transparent"
+                          style={{
+                            borderColor: "rgba(15,15,13,0.15)",
+                            color: "#0F0F0D",
+                          }}
+                        />
+                      </div>
+                      <textarea
+                        placeholder="Your message — what would you like to know?"
+                        value={inqForm.message}
+                        onChange={(e) =>
+                          setInqForm((prev) => ({
+                            ...prev,
+                            message: e.target.value,
+                          }))
+                        }
+                        rows={4}
+                        required
+                        className="w-full border-b py-3 text-sm font-light outline-none bg-transparent resize-none"
+                        style={{
+                          borderColor: "rgba(15,15,13,0.15)",
+                          color: "#0F0F0D",
+                        }}
+                      />
+                      {inqStatus === "error" && (
+                        <p
+                          className="text-sm font-light"
+                          role="alert"
+                          style={{ color: "#B4432E" }}
+                        >
+                          {inqError}
+                        </p>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={inqStatus === "sending"}
+                        className="w-full py-4 text-xs tracking-[0.3em] uppercase font-light transition-colors disabled:opacity-60"
+                        style={{ backgroundColor: "#C9A96E", color: "#0F0F0D" }}
+                      >
+                        {inqStatus === "sending" ? "Sending…" : "Send Inquiry"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              ) : null}
 
               {/* Mortgage estimate — buy only */}
               {property.listingType === "buy" && monthlyPayment !== null && (

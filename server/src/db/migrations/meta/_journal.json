@@ -15,6 +15,13 @@
       "when": 1790345415373,
       "tag": "0001_left_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790526485204,
+      "tag": "0002_great_deathbird",
+      "breakpoints": true
     }
   ]
 }

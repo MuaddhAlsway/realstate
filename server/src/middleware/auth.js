@@ -40,3 +40,18 @@ export function requireRole(...roles) {
     return next()
   }
 }
+
+/**
+ * optionalAuth — attach `req.user` when a valid access token is present but
+ * never fail the request (public routes that happily serve guests). Used by
+ * the public inquiry endpoint so signed-in customers are linked to their
+ * account (and their dashboard) without requiring a login wall.
+ */
+export function optionalAuth(req, _res, next) {
+  const header = req.get("authorization") ?? ""
+  const match = header.match(/^Bearer\s+(.+)$/i)
+  const token = match?.[1]
+  const payload = token ? verifyAccessToken(token) : null
+  if (payload) req.user = { id: payload.sub, role: payload.role }
+  return next()
+}

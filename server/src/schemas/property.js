@@ -68,7 +68,7 @@ export const createPropertySchema = z.object({
   purpose: z.enum(["SALE", "RENT"]).optional(), // DB default: SALE
   propertyType: z.enum(["VILLA", "APARTMENT", "PENTHOUSE", "DUPLEX"]),
   status: z
-    .enum(["AVAILABLE", "PENDING", "SOLD", "RENTED", "DRAFT"])
+    .enum(["AVAILABLE", "RESERVED", "PENDING", "SOLD", "RENTED", "ARCHIVED", "DRAFT"])
     .optional(), // DB default: AVAILABLE
   price: z
     .number()

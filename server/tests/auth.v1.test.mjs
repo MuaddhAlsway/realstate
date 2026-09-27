@@ -326,7 +326,7 @@ describe("property mutation role gate", () => {
     expect(res.status).toBe(201)
   })
 
-  it("201: AGENT can create", async () => {
+  it("403 FORBIDDEN: AGENT cannot create properties (Phase 11)", async () => {
     const login = await request(app)
       .post(`${AUTH}/login`)
       .send({ email: agent.email, password: agent.password })
@@ -337,8 +337,8 @@ describe("property mutation role gate", () => {
       .post(PROPERTIES)
       .set(bearer(agentToken))
       .send(propertyPayload(uniqueSlug("auth-test")))
-    expect(res.status).toBe(201)
-    expect(res.body.data.slug).toMatch(/^auth-test-/)
+    expect(res.status).toBe(403)
+    expect(res.body.error.code).toBe("FORBIDDEN")
   })
 
   it("GET stays public without a token", async () => {

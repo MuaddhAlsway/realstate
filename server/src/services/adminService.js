@@ -4,6 +4,7 @@ import * as schema from "../db/schema/index.js"
 import { HttpError } from "../errors/index.js"
 import { ErrorCodes } from "../errors/error-codes.js"
 import { translateDatabaseError } from "../errors/pg.js"
+import { hashPassword } from "../auth/password.js"
 
 /**
  * Admin aggregation + reference reads (Phase 09).
@@ -22,6 +23,7 @@ const {
   properties,
   viewingRequests,
   favorites,
+  inquiries,
 } = schema
 
 function requireDb() {
@@ -56,7 +58,8 @@ export async function getDashboard() {
   const [propertiesTotal, propertiesAvailable, propertiesPending, propertiesDraft,
     propertiesSold, propertiesRented, propertiesSale, propertiesRent, propertiesFeatured,
     usersTotal, agentsTotal, viewingsTotal, viewingsPending, viewingsConfirmed,
-    viewingsCompleted, viewingsCancelled, favoritesTotal, neighborhoodsTotal, amenitiesTotal] =
+    viewingsCompleted, viewingsCancelled, favoritesTotal, neighborhoodsTotal, amenitiesTotal,
+    inquiriesTotal, inquiriesPending, inquiriesInProgress, inquiriesCompleted, inquiriesCancelled] =
     await Promise.all([
       countAll(properties)(),
       run(() =>
@@ -137,6 +140,31 @@ export async function getDashboard() {
       countAll(favorites)(),
       countAll(neighborhoods)(),
       countAll(amenities)(),
+      countAll(inquiries)(),
+      run(() =>
+        db
+          .select({ n: count() })
+          .from(inquiries)
+          .where(eq(inquiries.status, "PENDING")),
+      ),
+      run(() =>
+        db
+          .select({ n: count() })
+          .from(inquiries)
+          .where(eq(inquiries.status, "IN_PROGRESS")),
+      ),
+      run(() =>
+        db
+          .select({ n: count() })
+          .from(inquiries)
+          .where(eq(inquiries.status, "COMPLETED")),
+      ),
+      run(() =>
+        db
+          .select({ n: count() })
+          .from(inquiries)
+          .where(eq(inquiries.status, "CANCELLED")),
+      ),
     ])
 
   const n = (row) => row?.[0]?.n ?? 0
@@ -171,6 +199,17 @@ export async function getDashboard() {
         CANCELLED: n(viewingsCancelled),
       },
     },
+    inquiries: {
+      total: n(inquiriesTotal),
+      byStatus: {
+        PENDING: n(inquiriesPending),
+        IN_PROGRESS: n(inquiriesInProgress),
+        COMPLETED: n(inquiriesCompleted),
+        CANCELLED: n(inquiriesCancelled),
+      },
+    },
+    // Closed deals — completed inquiries are the pipeline's terminal row.
+    deals: n(inquiriesCompleted),
   }
 }
 
@@ -242,6 +281,53 @@ export async function updateAdminAgent(id, patch) {
     }),
   )
   return row
+}
+
+/**
+ * Create an agent account (Phase 11): a `users` row with role AGENT plus its
+ * linked `agents` profile, so every agent logs into their own portal. Both
+ * rows commit atomically; duplicate emails surface as EMAIL_CONFLICT.
+ */
+export async function createAgentAccount({ name, email, password, phone, ...profile }) {
+  const db = requireDb()
+  const passwordHash = await hashPassword(password)
+
+  let user
+  let agent
+  await db.transaction(async (tx) => {
+    const [insertedUser] = await run(() =>
+      tx
+        .insert(users)
+        .values({ name, email, passwordHash, role: "AGENT", phone: phone ?? null })
+        .returning({ id: users.id }),
+    )
+    user = insertedUser
+
+    const [insertedAgent] = await run(() =>
+      tx
+        .insert(agents)
+        .values({
+          userId: user.id,
+          name,
+          role: profile.role ?? null,
+          languages: profile.languages ?? null,
+          experienceYears: profile.experienceYears ?? 0,
+          phone: phone ?? null,
+          email: email ?? null,
+          imageUrl: profile.imageUrl ?? null,
+        })
+        .returning({ id: agents.id }),
+    )
+    agent = insertedAgent
+  })
+
+  const [fullAgent] = await run(() =>
+    db.query.agents.findMany({
+      where: eq(agents.id, agent.id),
+      with: { user: { columns: { id: true, name: true, email: true, role: true } } },
+    }),
+  )
+  return { user, agent: fullAgent }
 }
 
 // ── Admin: users ──────────────────────────────────────────────────────

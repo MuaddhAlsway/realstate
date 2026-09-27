@@ -1,18 +1,13 @@
 import { useState, type ReactNode } from "react"
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { ToastProvider } from "./Toast"
+import { ToastProvider } from "../admin/Toast"
 
 const NAV_ITEMS = [
-  { to: "/admin", label: "Dashboard", end: true },
-  { to: "/admin/properties", label: "Properties" },
-  { to: "/admin/properties/new", label: "Add Property" },
-  { to: "/admin/content", label: "Content" },
-  { to: "/admin/inquiries", label: "Inquiries" },
-  { to: "/admin/deals", label: "Deals" },
-  { to: "/admin/viewings", label: "Viewings" },
-  { to: "/admin/agents", label: "Agents" },
-  { to: "/admin/users", label: "Users" },
+  { to: "/agent", label: "Dashboard", end: true },
+  { to: "/agent/properties", label: "My Properties" },
+  { to: "/agent/inquiries", label: "Inquiries" },
+  { to: "/agent/notifications", label: "Notifications" },
 ]
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -48,10 +43,7 @@ function SidebarFooter() {
   }
   return (
     <div className="mt-auto px-4 pb-6">
-      <div
-        className="px-4 py-3 mb-3"
-        style={{ backgroundColor: "rgba(245,240,232,0.06)" }}
-      >
+      <div className="px-4 py-3 mb-3" style={{ backgroundColor: "rgba(245,240,232,0.06)" }}>
         <p className="text-xs font-light text-[#F5F0E8]/90">{user?.name}</p>
         <p className="text-[11px] font-light text-[#6B6560]">{user?.email}</p>
       </div>
@@ -62,6 +54,14 @@ function SidebarFooter() {
         >
           View site
         </Link>
+        {user?.role === "ADMIN" ? (
+          <Link
+            to="/admin"
+            className="px-4 py-2 text-xs tracking-[0.2em] uppercase font-light text-[#C9A96E] hover:text-[#F5F0E8] transition-colors"
+          >
+            Admin console
+          </Link>
+        ) : null}
         <button
           onClick={handleLogout}
           className="px-4 py-2 text-left text-xs tracking-[0.2em] uppercase font-light text-[#C9A96E] hover:text-[#F5F0E8] transition-colors cursor-pointer"
@@ -73,7 +73,7 @@ function SidebarFooter() {
   )
 }
 
-export default function AdminLayout() {
+export default function AgentLayout() {
   const [open, setOpen] = useState(false)
 
   return (
@@ -91,7 +91,7 @@ export default function AdminLayout() {
               Estate
             </span>
             <p className="text-[11px] font-light tracking-[0.2em] uppercase text-[#C9A96E] mt-1">
-              Admin
+              Agent Portal
             </p>
           </div>
           <NavList />
@@ -112,10 +112,7 @@ export default function AdminLayout() {
               <div className="flex items-center justify-between px-6 py-6">
                 <span
                   className="text-xl font-light tracking-[0.3em] uppercase"
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    color: "#F5F0E8",
-                  }}
+                  style={{ fontFamily: "var(--font-display)", color: "#F5F0E8" }}
                 >
                   Estate
                 </span>
@@ -136,10 +133,7 @@ export default function AdminLayout() {
         <div className="md:pl-64">
           <header
             className="sticky top-0 z-30 flex items-center justify-between px-6 lg:px-10 py-4"
-            style={{
-              backgroundColor: "#EDE6D6",
-              borderBottom: "1px solid rgba(15,15,13,0.1)",
-            }}
+            style={{ backgroundColor: "#EDE6D6", borderBottom: "1px solid rgba(15,15,13,0.1)" }}
           >
             <button
               onClick={() => setOpen(true)}
@@ -149,14 +143,14 @@ export default function AdminLayout() {
               Menu
             </button>
             <span className="hidden md:block text-sm font-light text-[#6B6560]">
-              Estate Management
+              Client management
             </span>
             <Link
-              to="/admin/properties/new"
+              to="/agent/inquiries"
               className="text-xs tracking-[0.2em] uppercase font-light px-4 py-2 cursor-pointer"
               style={{ backgroundColor: "#C9A96E", color: "#0F0F0D" }}
             >
-              New property
+              Inquiries
             </Link>
           </header>
           <main className="px-6 lg:px-10 py-10">

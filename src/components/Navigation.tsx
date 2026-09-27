@@ -155,6 +155,16 @@ export default function Navigation() {
               )}
             </Link>
 
+            {(user?.role === "AGENT" || user?.role === "ADMIN") && (
+              <Link
+                to={user.role === "AGENT" ? "/agent" : "/admin"}
+                className="text-xs tracking-[0.2em] uppercase font-light transition-colors duration-300 hover:text-[#C9A96E]"
+                style={{ color: accent }}
+              >
+                Portal
+              </Link>
+            )}
+
             <Link
               to="/contact"
               className="btn-magnetic text-xs tracking-[0.2em] uppercase font-light px-6 py-2.5 border transition-all duration-300"
@@ -245,6 +255,15 @@ export default function Navigation() {
             >
               {user ? "Account" : "Sign in"}
             </Link>
+            {(user?.role === "AGENT" || user?.role === "ADMIN") && (
+              <Link
+                to={user.role === "AGENT" ? "/agent" : "/admin"}
+                className="text-xs tracking-[0.25em] uppercase font-light"
+                style={{ color: "#C9A96E" }}
+              >
+                Portal
+              </Link>
+            )}
           </div>
           <div className="mt-12 flex flex-col gap-4">
             <p

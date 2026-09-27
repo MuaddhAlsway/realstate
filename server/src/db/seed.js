@@ -162,6 +162,13 @@ const DEMO_ACCOUNTS = [
     password: "Estate-Demo-2026!",
     role: "USER",
   },
+  {
+    id: "user:agent",
+    name: "Sales Agent",
+    email: "agent@estate.sa",
+    password: "Estate-Agent-2026!",
+    role: "AGENT",
+  },
 ]
 
 const demoUsers = []
@@ -175,10 +182,13 @@ for (const account of DEMO_ACCOUNTS) {
   })
 }
 
-// Link the admin account to the first agent to exercise the 1:1 relation.
+// Link the admin account to the first agent and the demo agent account to
+// the second, so both portal roles have a working login out of the box.
 const adminUser = demoUsers.find((user) => user.role === "ADMIN")
+const agentUser = demoUsers.find((user) => user.role === "AGENT")
 const seededAgents = structuredClone(agents)
 seededAgents[0].userId = adminUser.id
+seededAgents[1].userId = agentUser.id
 
 try {
   await db.transaction(async (tx) => {
@@ -194,7 +204,12 @@ try {
       .values(demoUsers)
       .onConflictDoUpdate({
         target: userTable.email,
-        set: { passwordHash: sql`excluded.password_hash` },
+        // Refresh demo password hashes (and display names) on re-seed (dev
+        // convenience) but keep the stable ids/roles.
+        set: {
+          passwordHash: sql`excluded.password_hash`,
+          name: sql`excluded.name`,
+        },
       })
     await tx.insert(agentTable).values(seededAgents).onConflictDoNothing()
     await tx.insert(propertyTable).values(properties).onConflictDoNothing()

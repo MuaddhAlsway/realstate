@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import {
-  adminApi,
-  type AdminAgent,
-} from "../../services/admin"
+import { adminApi, type AdminAgent } from "../../services/admin"
 import { useToast } from "../Toast"
 import {
   Badge,
@@ -33,10 +30,35 @@ export default function Agents() {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<AdminAgent | null>(null)
   const [form, setForm] = useState<AgentForm>({
-    name: "", role: "", languages: "", experienceYears: "0", phone: "", email: "", imageUrl: "",
+    name: "",
+    role: "",
+    languages: "",
+    experienceYears: "0",
+    phone: "",
+    email: "",
+    imageUrl: "",
   })
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createForm, setCreateForm] = useState<{
+    name: string
+    email: string
+    password: string
+    role: string
+    phone: string
+    languages: string
+    experienceYears: string
+  }>({
+    name: "",
+    email: "",
+    password: "",
+    role: "",
+    phone: "",
+    languages: "",
+    experienceYears: "0",
+  })
+  const [creating, setCreating] = useState(false)
   const { toast } = useToast()
 
   const load = useCallback(() => {
@@ -82,7 +104,10 @@ export default function Agents() {
         name: form.name.trim(),
         role: form.role.trim() === "" ? null : form.role.trim(),
         languages: form.languages.trim() === "" ? null : form.languages.trim(),
-        experienceYears: Math.max(0, Math.round(Number(form.experienceYears) || 0)),
+        experienceYears: Math.max(
+          0,
+          Math.round(Number(form.experienceYears) || 0),
+        ),
         phone: form.phone.trim() === "" ? null : form.phone.trim(),
         email: form.email.trim() === "" ? null : form.email.trim(),
         imageUrl: form.imageUrl.trim() === "" ? null : form.imageUrl.trim(),
@@ -93,20 +118,89 @@ export default function Agents() {
       )
       setEditing(null)
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not update agent")
+      setFormError(
+        err instanceof Error ? err.message : "Could not update agent",
+      )
     } finally {
       setSaving(false)
     }
   }
 
+  const createAgent = async () => {
+    if (!createForm.name.trim()) {
+      setFormError("Full name is required.")
+      return
+    }
+    if (!createForm.email.trim()) {
+      setFormError("Email is required.")
+      return
+    }
+    if (createForm.password.length < 8) {
+      setFormError("Password must be at least 8 characters.")
+      return
+    }
+    setCreating(true)
+    setFormError(null)
+    try {
+      const created = await adminApi.createAgent({
+        name: createForm.name.trim(),
+        email: createForm.email.trim(),
+        password: createForm.password,
+        role: createForm.role.trim() === "" ? null : createForm.role.trim(),
+        phone: createForm.phone.trim() === "" ? null : createForm.phone.trim(),
+        languages:
+          createForm.languages.trim() === ""
+            ? null
+            : createForm.languages.trim(),
+        experienceYears: Math.max(
+          0,
+          Math.round(Number(createForm.experienceYears) || 0),
+        ),
+      })
+      toast("Agent created — login credentials sent")
+      setRows((current) => [created, ...current])
+      setCreateOpen(false)
+      setCreateForm({
+        name: "",
+        email: "",
+        password: "",
+        role: "",
+        phone: "",
+        languages: "",
+        experienceYears: "0",
+      })
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Could not create agent",
+      )
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="max-w-6xl">
-      <h1 className="text-3xl font-light" style={{ fontFamily: "var(--font-display)" }}>
+      <h1
+        className="text-3xl font-light"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
         Agents
       </h1>
       <p className="text-sm font-light text-[#6B6560] mt-1 mb-8">
         {rows.length} team members with public profiles
       </p>
+
+      <div className="flex justify-end mb-6">
+        <Button
+          variant="gold"
+          onClick={() => {
+            setCreateOpen(true)
+            setFormError(null)
+          }}
+        >
+          Create agent
+        </Button>
+      </div>
 
       {error ? (
         <EmptyState message={error} />
@@ -115,7 +209,9 @@ export default function Agents() {
       ) : rows.length === 0 ? (
         <EmptyState message="No agents found." />
       ) : (
-        <Table headers={["", "Name", "Role", "Account", "Experience", "Contact", ""]}>
+        <Table
+          headers={["", "Name", "Role", "Account", "Experience", "Contact", ""]}
+        >
           {rows.map((agent) => (
             <tr
               key={agent.id}
@@ -123,7 +219,12 @@ export default function Agents() {
             >
               <td className="px-4 py-3 w-14">
                 {agent.imageUrl ? (
-                  <img src={agent.imageUrl} alt="" className="w-10 h-10 object-cover rounded-full" loading="lazy" />
+                  <img
+                    src={agent.imageUrl}
+                    alt=""
+                    className="w-10 h-10 object-cover rounded-full"
+                    loading="lazy"
+                  />
                 ) : (
                   <span className="block w-10 h-10 rounded-full bg-[#EDE6D6]" />
                 )}
@@ -135,7 +236,9 @@ export default function Agents() {
                 >
                   {agent.name}
                 </Link>
-                <p className="text-xs font-light text-[#A09890]">{agent.phone ?? ""}</p>
+                <p className="text-xs font-light text-[#A09890]">
+                  {agent.phone ?? ""}
+                </p>
               </td>
               <td className="px-4 py-3 text-sm font-light text-[#6B6560]">
                 {agent.role ?? "—"}
@@ -171,7 +274,10 @@ export default function Agents() {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Field label="Name">
-            <TextInput value={form.name} onChange={(name) => setForm({ ...form, name })} />
+            <TextInput
+              value={form.name}
+              onChange={(name) => setForm({ ...form, name })}
+            />
           </Field>
           <Field label="Role">
             <TextInput
@@ -190,7 +296,9 @@ export default function Agents() {
           <Field label="Experience (years)">
             <TextInput
               value={form.experienceYears}
-              onChange={(experienceYears) => setForm({ ...form, experienceYears })}
+              onChange={(experienceYears) =>
+                setForm({ ...form, experienceYears })
+              }
               type="number"
             />
           </Field>
@@ -222,7 +330,11 @@ export default function Agents() {
         {formError && (
           <p
             className="mt-6 text-sm font-light px-4 py-3"
-            style={{ backgroundColor: "#A03A2E18", color: "#A03A2E", border: "1px solid #A03A2E40" }}
+            style={{
+              backgroundColor: "#A03A2E18",
+              color: "#A03A2E",
+              border: "1px solid #A03A2E40",
+            }}
             role="alert"
           >
             {formError}
@@ -230,11 +342,109 @@ export default function Agents() {
         )}
 
         <div className="mt-8 flex justify-end gap-3">
-          <Button variant="ghost" onClick={() => setEditing(null)} disabled={saving}>
+          <Button
+            variant="ghost"
+            onClick={() => setEditing(null)}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button variant="gold" onClick={save} disabled={saving}>
             {saving ? "Saving…" : "Save agent"}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Create agent account"
+      >
+        <p className="text-sm font-light text-[#6B6560] mb-6">
+          Creates a team member profile plus a portal login with AGENT role.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Field label="Full name">
+            <TextInput
+              value={createForm.name}
+              onChange={(name) => setCreateForm({ ...createForm, name })}
+            />
+          </Field>
+          <Field label="Login email">
+            <TextInput
+              value={createForm.email}
+              onChange={(email) => setCreateForm({ ...createForm, email })}
+              type="email"
+              placeholder="name@estate.sa"
+            />
+          </Field>
+          <Field label="Password">
+            <TextInput
+              value={createForm.password}
+              onChange={(password) =>
+                setCreateForm({ ...createForm, password })
+              }
+              type="password"
+            />
+          </Field>
+          <Field label="Role">
+            <TextInput
+              value={createForm.role}
+              onChange={(role) => setCreateForm({ ...createForm, role })}
+              placeholder="e.g. Senior Advisor"
+            />
+          </Field>
+          <Field label="Phone">
+            <TextInput
+              value={createForm.phone}
+              onChange={(phone) => setCreateForm({ ...createForm, phone })}
+              placeholder="+966 ..."
+            />
+          </Field>
+          <Field label="Languages">
+            <TextInput
+              value={createForm.languages}
+              onChange={(languages) =>
+                setCreateForm({ ...createForm, languages })
+              }
+              placeholder="e.g. Arabic, English"
+            />
+          </Field>
+          <Field label="Experience (years)">
+            <TextInput
+              value={createForm.experienceYears}
+              onChange={(experienceYears) =>
+                setCreateForm({ ...createForm, experienceYears })
+              }
+              type="number"
+            />
+          </Field>
+        </div>
+
+        {formError && (
+          <p
+            className="mt-6 text-sm font-light px-4 py-3"
+            style={{
+              backgroundColor: "#A03A2E18",
+              color: "#A03A2E",
+              border: "1px solid #A03A2E40",
+            }}
+            role="alert"
+          >
+            {formError}
+          </p>
+        )}
+
+        <div className="mt-8 flex justify-end gap-3">
+          <Button
+            variant="ghost"
+            onClick={() => setCreateOpen(false)}
+            disabled={creating}
+          >
+            Cancel
+          </Button>
+          <Button variant="gold" onClick={createAgent} disabled={creating}>
+            {creating ? "Creating…" : "Create agent"}
           </Button>
         </div>
       </Modal>

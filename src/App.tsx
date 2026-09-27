@@ -12,12 +12,15 @@ import { AuthProvider } from "./context/AuthContext"
 import { FavoritesProvider } from "./context/FavoritesContext"
 import { SiteContentProvider } from "./services/siteContent"
 import { RequireAdmin } from "./admin/RequireAdmin"
+import { RequireRole } from "./admin/RequireRole"
 import AdminLayout from "./admin/AdminLayout"
 import Dashboard from "./admin/pages/Dashboard"
 import Properties from "./admin/pages/Properties"
 import PropertyNew from "./admin/pages/PropertyNew"
 import PropertyEdit from "./admin/pages/PropertyEdit"
 import Content from "./admin/pages/Content"
+import AdminInquiries from "./admin/pages/Inquiries"
+import AdminDeals from "./admin/pages/Deals"
 import Viewings from "./admin/pages/Viewings"
 import Agents from "./admin/pages/Agents"
 import Users from "./admin/pages/Users"
@@ -32,6 +35,13 @@ import About from "./pages/About"
 import Contact from "./pages/Contact"
 import Auth from "./pages/Auth"
 import DashboardPage from "./pages/Dashboard"
+import InquiryDetail from "./pages/InquiryDetail"
+import AgentLayout from "./agent/AgentLayout"
+import AgentDashboard from "./agent/pages/Dashboard"
+import AgentProperties from "./agent/pages/Properties"
+import AgentInquiries from "./agent/pages/Inquiries"
+import AgentInquiryDetail from "./agent/pages/InquiryDetail"
+import AgentNotifications from "./agent/pages/Notifications"
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -85,6 +95,7 @@ function PublicRoutes() {
       <Route path="/saved" element={<Saved />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/dashboard/inquiries/:id" element={<InquiryDetail />} />
       <Route path="*" element={<Home />} />
     </Routes>
   )
@@ -94,20 +105,42 @@ function AdminRoutes() {
   return (
     <Routes>
       <Route
-        element={(
+        element={
           <RequireAdmin>
             <AdminLayout />
           </RequireAdmin>
-        )}
+        }
       >
         <Route index element={<Dashboard />} />
         <Route path="properties" element={<Properties />} />
         <Route path="properties/new" element={<PropertyNew />} />
         <Route path="properties/:id/edit" element={<PropertyEdit />} />
         <Route path="content" element={<Content />} />
+        <Route path="inquiries" element={<AdminInquiries />} />
+        <Route path="deals" element={<AdminDeals />} />
         <Route path="viewings" element={<Viewings />} />
         <Route path="agents" element={<Agents />} />
         <Route path="users" element={<Users />} />
+      </Route>
+    </Routes>
+  )
+}
+
+function AgentPortalRoutes() {
+  return (
+    <Routes>
+      <Route
+        element={
+          <RequireRole roles={["AGENT"]}>
+            <AgentLayout />
+          </RequireRole>
+        }
+      >
+        <Route index element={<AgentDashboard />} />
+        <Route path="properties" element={<AgentProperties />} />
+        <Route path="inquiries" element={<AgentInquiries />} />
+        <Route path="inquiries/:id" element={<AgentInquiryDetail />} />
+        <Route path="notifications" element={<AgentNotifications />} />
       </Route>
     </Routes>
   )
@@ -129,12 +162,13 @@ export default function App() {
   return (
     <AuthProvider>
       <FavoritesProvider>
-<SiteContentProvider>
-        <HashRouter>
+        <SiteContentProvider>
+          <HashRouter>
             <ScrollProgress />
             <CustomCursor />
             <Routes>
               <Route path="/admin/*" element={<AdminRoutes />} />
+              <Route path="/agent/*" element={<AgentPortalRoutes />} />
               <Route path="/*" element={<Layout />} />
             </Routes>
           </HashRouter>

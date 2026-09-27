@@ -14,6 +14,7 @@ import {
   adminUsersQuerySchema,
 } from "../../schemas/admin.js"
 import { viewingQuerySchema } from "../../schemas/viewing.js"
+import { inquiryQuerySchema, createAdminAgentSchema } from "../../schemas/inquiry.js"
 import * as adminController from "../../controllers/v1/admin.js"
 import * as mediaController from "../../controllers/v1/media.js"
 import { createRateLimiter } from "../../middleware/rateLimit.js"
@@ -71,6 +72,18 @@ router.patch(
   validate(adminAgentParamSchema, "params"),
   validatePatch(updateAdminAgentSchema),
   adminController.updateAgent,
+)
+router.post("/agents", validate(createAdminAgentSchema), adminController.createAgent)
+
+router.get(
+  "/inquiries",
+  validateQuery(inquiryQuerySchema),
+  adminController.listInquiries,
+)
+router.get(
+  "/deals",
+  validateQuery(inquiryQuerySchema),
+  adminController.listDeals,
 )
 
 router.get(
