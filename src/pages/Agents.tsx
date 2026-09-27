@@ -1,4 +1,10 @@
-import { agents } from "../data/properties"
+import { useEffect, useState } from "react"
+import type { Agent } from "../data/properties"
+import { api } from "../services/api"
+import {
+  createGmailComposeLink,
+  createWhatsAppLink,
+} from "../utils/contactLinks"
 import { useReveal } from "../hooks/useReveal"
 import { useGSAP } from "@gsap/react"
 import { gsap } from "../animations/gsap"
@@ -8,6 +14,27 @@ import { useReducedMotion } from "../hooks/useReducedMotion"
 export default function Agents() {
   const ref = useReveal<HTMLDivElement>()
   const reduced = useReducedMotion()
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .fetchAgents()
+      .then((list) => {
+        if (!cancelled) setAgents(list)
+      })
+      .catch(() => {
+        if (!cancelled) setError("Unable to load the team right now.")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useGSAP(
     () => {
@@ -24,7 +51,7 @@ export default function Agents() {
         card.addEventListener("mouseleave", onLeave)
       })
     },
-    { dependencies: [reduced] },
+    { dependencies: [reduced, agents] },
   )
 
   return (
@@ -61,76 +88,146 @@ export default function Agents() {
 
       {/* Team grid */}
       <div className="max-w-[1440px] mx-auto px-6 lg:px-16 py-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          {agents.map((a) => (
-            <div key={a.id} className="agent-card" data-reveal>
-              <div
-                className="overflow-hidden mb-6"
-                style={{ aspectRatio: "4/5" }}
-              >
-                <img
-                  src={a.image}
-                  alt={a.name}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  decoding="async"
-                  style={{ filter: "grayscale(15%)" }}
-                />
-              </div>
-              <h2 className="text-heading-md mb-1" style={{ color: "#0F0F0D" }}>
-                {a.name}
-              </h2>
-              <p className="eyebrow mb-4" style={{ color: "#C9A96E" }}>
-                {a.role}
-              </p>
-              <p
-                className="text-sm font-light mb-6"
-                style={{ color: "#6B6560" }}
-              >
-                {a.experience} years · {a.properties} properties · {a.languages}
-              </p>
-              <div className="flex gap-3">
-                <a
-                  href={`tel:${a.phone.replace(/[^+\d]/g, "")}`}
-                  className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light border transition-colors"
-                  style={{
-                    borderColor: "rgba(15,15,13,0.2)",
-                    color: "#0F0F0D",
-                  }}
-                  onMouseEnter={(e) => {
-                    const t = e.currentTarget
-                    t.style.backgroundColor = "#0F0F0D"
-                    t.style.color = "#F5F0E8"
-                  }}
-                  onMouseLeave={(e) => {
-                    const t = e.currentTarget
-                    t.style.backgroundColor = ""
-                    t.style.color = "#0F0F0D"
-                  }}
-                >
-                  Call
-                </a>
-                <a
-                  href={`mailto:${a.email}`}
-                  className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light transition-colors"
-                  style={{ backgroundColor: "#0F0F0D", color: "#F5F0E8" }}
-                  onMouseEnter={(e) => {
-                    const t = e.currentTarget
-                    t.style.backgroundColor = "#C9A96E"
-                    t.style.color = "#0F0F0D"
-                  }}
-                  onMouseLeave={(e) => {
-                    const t = e.currentTarget
-                    t.style.backgroundColor = "#0F0F0D"
-                    t.style.color = "#F5F0E8"
-                  }}
-                >
-                  Email
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <p className="text-sm font-light" style={{ color: "#6B6560" }}>
+            Loading advisors…
+          </p>
+        ) : error ? (
+          <p
+            className="text-sm font-light"
+            style={{ color: "#B4432E" }}
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : agents.length === 0 ? (
+          <p className="text-sm font-light" style={{ color: "#6B6560" }}>
+            No advisors to display.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            {agents.map((a) => {
+              const whatsappLink = createWhatsAppLink(
+                a.phone,
+                `Hello ${a.name}, I'm interested in learning more about your available properties.`,
+              )
+              const gmailLink = createGmailComposeLink({
+                to: a.email,
+                subject: "Property Inquiry",
+                message: `Hello ${a.name},
+
+I'm interested in learning more about your available properties.
+
+Thank you.`,
+              })
+              return (
+                <div key={a.id} className="agent-card" data-reveal>
+                  <div
+                    className="overflow-hidden mb-6"
+                    style={{ aspectRatio: "4/5" }}
+                  >
+                    <img
+                      src={a.image}
+                      alt={a.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                      style={{ filter: "grayscale(15%)" }}
+                    />
+                  </div>
+                  <h2
+                    className="text-heading-md mb-1"
+                    style={{ color: "#0F0F0D" }}
+                  >
+                    {a.name}
+                  </h2>
+                  <p className="eyebrow mb-4" style={{ color: "#C9A96E" }}>
+                    {a.role}
+                  </p>
+                  <p
+                    className="text-sm font-light mb-6"
+                    style={{ color: "#6B6560" }}
+                  >
+                    {a.experience} years · {a.properties} properties ·{" "}
+                    {a.languages}
+                  </p>
+                  <div className="flex gap-3">
+                    {whatsappLink ? (
+                      <a
+                        href={whatsappLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light border transition-colors"
+                        style={{
+                          borderColor: "rgba(15,15,13,0.2)",
+                          color: "#0F0F0D",
+                        }}
+                        onMouseEnter={(e) => {
+                          const t = e.currentTarget
+                          t.style.backgroundColor = "#0F0F0D"
+                          t.style.color = "#F5F0E8"
+                        }}
+                        onMouseLeave={(e) => {
+                          const t = e.currentTarget
+                          t.style.backgroundColor = ""
+                          t.style.color = "#0F0F0D"
+                        }}
+                      >
+                        WhatsApp
+                      </a>
+                    ) : (
+                      <span
+                        aria-disabled="true"
+                        className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light border"
+                        style={{
+                          borderColor: "rgba(15,15,13,0.12)",
+                          color: "#A09890",
+                        }}
+                      >
+                        WhatsApp
+                      </span>
+                    )}
+                    {gmailLink ? (
+                      <a
+                        href={gmailLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light transition-colors"
+                        style={{
+                          backgroundColor: "#0F0F0D",
+                          color: "#F5F0E8",
+                        }}
+                        onMouseEnter={(e) => {
+                          const t = e.currentTarget
+                          t.style.backgroundColor = "#C9A96E"
+                          t.style.color = "#0F0F0D"
+                        }}
+                        onMouseLeave={(e) => {
+                          const t = e.currentTarget
+                          t.style.backgroundColor = "#0F0F0D"
+                          t.style.color = "#F5F0E8"
+                        }}
+                      >
+                        Email
+                      </a>
+                    ) : (
+                      <span
+                        aria-disabled="true"
+                        className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light"
+                        style={{
+                          backgroundColor: "rgba(15,15,13,0.06)",
+                          color: "#A09890",
+                        }}
+                      >
+                        Email
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* CTA */}
         <div

@@ -1,5 +1,6 @@
 import { Router } from "express"
 import propertiesRouter from "./properties.js"
+import agentsRouter from "./agents.js"
 import authRouter from "./auth.js"
 import favoritesRouter from "./favorites.js"
 import viewingsRouter from "./viewings.js"
@@ -9,6 +10,7 @@ import contentRouter from "./content.js"
 const router = Router()
 
 router.use("/properties", propertiesRouter)
+router.use("/agents", agentsRouter)
 router.use("/auth", authRouter)
 router.use("/favorites", favoritesRouter)
 router.use("/viewings", viewingsRouter)

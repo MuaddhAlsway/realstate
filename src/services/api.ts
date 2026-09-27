@@ -107,7 +107,13 @@ export const api = {
   fetchNeighborhoods: () =>
     http.get<Neighborhood[]>("/api/neighborhoods"),
 
-  fetchAgents: () => http.get<Agent[]>("/api/agents"),
+  fetchAgents: async (): Promise<Agent[]> => {
+    if (API_BASE) {
+      const data = await http.get<unknown[]>(`${ROOT}/agents`)
+      return data.map(mapAgent)
+    }
+    return http.get<Agent[]>("/api/agents")
+  },
 
   fetchFavorites: async (): Promise<SavedFavorite[]> => {
     const data = await http.get<Array<Record<string, unknown>>>(

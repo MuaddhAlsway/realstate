@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { useParams, Link, useLocation } from "react-router-dom"
-import { properties, agents, type Property, type Agent } from "../data/properties"
+import {
+  properties,
+  type Property,
+  type Agent,
+} from "../data/properties"
 import { api } from "../services/api"
 import { REMOTE } from "../services/http"
 import { PropertyCard } from "../components/property/PropertyCard"
 import { useReveal } from "../hooks/useReveal"
 import { useFavorites } from "../context/FavoritesContext"
 import { useAuth } from "../context/AuthContext"
+import {
+  createGmailComposeLink,
+  createWhatsAppLink,
+} from "../utils/contactLinks"
 
 function formatPrice(priceNum: number): string {
   if (priceNum >= 1_000_000) return `SAR ${(priceNum / 1_000_000).toFixed(2)}M`
@@ -30,10 +38,26 @@ export default function PropertyDetail() {
     agent: Agent | null
   } | null>(null)
   const property = detail?.property ?? staticProperty
-  const agent =
-    detail?.agent ??
-    agents.find((a) => a.id === staticProperty.agentId) ??
-    agents[0]
+  const agent = detail?.agent ?? null
+
+  const whatsappLink = agent?.phone
+    ? createWhatsAppLink(
+        agent.phone,
+        `Hello, I'm interested in ${property.name}. Could you please provide me with more information about this property?`,
+      )
+    : null
+
+  const gmailLink = agent?.email
+    ? createGmailComposeLink({
+        to: agent.email,
+        subject: `Property Inquiry — ${property.name}`,
+        message: `Hello ${agent.name},
+
+I'm interested in ${property.name} and would like to get more information about this property.
+
+Thank you.`,
+      })
+    : null
 
   useEffect(() => {
     if (!id) return
@@ -425,63 +449,119 @@ export default function PropertyDetail() {
                 style={{ borderColor: "rgba(15,15,13,0.1)" }}
                 data-reveal
               >
-                <div className="flex items-start gap-4 mb-6">
-                  <div
-                    className="overflow-hidden flex-none"
-                    style={{ width: "72px", height: "90px" }}
-                  >
-                    <img
-                      src={agent.image}
-                      alt={agent.name}
-                      className="w-full h-full object-cover"
-                      style={{ filter: "grayscale(20%)" }}
-                      loading="lazy"
-                    />
-                  </div>
-                  <div>
-                    <p
-                      className="font-light mb-1"
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: "1.15rem",
-                        color: "#0F0F0D",
-                      }}
-                    >
-                      {agent.name}
+                {agent ? (
+                  <>
+                    <div className="flex items-start gap-4 mb-6">
+                      <div
+                        className="overflow-hidden flex-none"
+                        style={{ width: "72px", height: "90px" }}
+                      >
+                        <img
+                          src={agent.image}
+                          alt={agent.name}
+                          className="w-full h-full object-cover"
+                          style={{ filter: "grayscale(20%)" }}
+                          loading="lazy"
+                        />
+                      </div>
+                      <div>
+                        <p
+                          className="font-light mb-1"
+                          style={{
+                            fontFamily: "var(--font-display)",
+                            fontSize: "1.15rem",
+                            color: "#0F0F0D",
+                          }}
+                        >
+                          {agent.name}
+                        </p>
+                        <p
+                          className="text-xs tracking-[0.15em] uppercase font-light mb-2"
+                          style={{ color: "#C9A96E" }}
+                        >
+                          {agent.role}
+                        </p>
+                        <p
+                          className="text-xs font-light"
+                          style={{ color: "#A09890" }}
+                        >
+                          {agent.experience} years · {agent.properties}{" "}
+                          properties
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      {whatsappLink ? (
+                        <a
+                          href={whatsappLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light border transition-colors"
+                          style={{
+                            borderColor: "rgba(15,15,13,0.2)",
+                            color: "#0F0F0D",
+                          }}
+                        >
+                          WhatsApp
+                        </a>
+                      ) : (
+                        <span
+                          aria-disabled="true"
+                          className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light border"
+                          style={{
+                            borderColor: "rgba(15,15,13,0.12)",
+                            color: "#A09890",
+                          }}
+                        >
+                          WhatsApp
+                        </span>
+                      )}
+                      {gmailLink ? (
+                        <a
+                          href={gmailLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light"
+                          style={{
+                            backgroundColor: "#0F0F0D",
+                            color: "#F5F0E8",
+                          }}
+                        >
+                          Email
+                        </a>
+                      ) : (
+                        <span
+                          aria-disabled="true"
+                          className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light"
+                          style={{
+                            backgroundColor: "rgba(15,15,13,0.06)",
+                            color: "#A09890",
+                          }}
+                        >
+                          Email
+                        </span>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <p className="eyebrow mb-1" style={{ color: "#C9A96E" }}>
+                      Advisor
                     </p>
                     <p
-                      className="text-xs tracking-[0.15em] uppercase font-light mb-2"
-                      style={{ color: "#C9A96E" }}
+                      className="text-sm font-light"
+                      style={{ color: "#6B6560" }}
                     >
-                      {agent.role}
+                      Agent contact unavailable
                     </p>
                     <p
                       className="text-xs font-light"
                       style={{ color: "#A09890" }}
                     >
-                      {agent.experience} years · {agent.properties} properties
+                      Connect with our office via the Contact page.
                     </p>
                   </div>
-                </div>
-                <div className="flex gap-3">
-                  <a
-                    href={`tel:${agent.phone.replace(/[^+\d]/g, "")}`}
-                    className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light border transition-colors"
-                    style={{
-                      borderColor: "rgba(15,15,13,0.2)",
-                      color: "#0F0F0D",
-                    }}
-                  >
-                    Call
-                  </a>
-                  <a
-                    href={`mailto:${agent.email}`}
-                    className="flex-1 text-center py-3 text-xs tracking-[0.2em] uppercase font-light"
-                    style={{ backgroundColor: "#0F0F0D", color: "#F5F0E8" }}
-                  >
-                    Email
-                  </a>
-                </div>
+                )}
               </div>
 
               {/* Viewing form */}
