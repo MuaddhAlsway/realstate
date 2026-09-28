@@ -89,7 +89,13 @@ export default function NewsletterCompose() {
       const result = await newsletterAdminApi.sendCampaign(draft.id)
       setBroadcastResult(result)
       setDraft((current) => (current ? { ...current, status: result.status } : current))
-      toast(`Campaign sent to ${result.sent} subscriber(s)`)
+      toast(
+        result.total === 0
+          ? "No active subscribers to broadcast to"
+          : result.failed > 0
+            ? `Broadcast finished: ${result.sent} of ${result.total} sent — ${result.failed} failed`
+            : `Campaign sent to ${result.sent} subscriber(s)`,
+      )
     } catch (err) {
       toast(err instanceof Error ? err.message : "Could not broadcast", "error")
     } finally {

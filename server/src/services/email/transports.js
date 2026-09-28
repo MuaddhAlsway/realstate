@@ -1,5 +1,4 @@
-import { createConnection } from "node:net"
-import { connect as tlsConnect } from "node:tls"
+import nodemailer from "nodemailer"
 import {
   EMAIL_PROVIDER,
   SMTP_HOST,
@@ -7,6 +6,8 @@ import {
   SMTP_USER,
   SMTP_PASS,
   SMTP_SECURE,
+  SMTP_FROM_EMAIL,
+  SMTP_FROM_NAME,
 } from "../../config/env.js"
 
 /**
@@ -18,10 +19,10 @@ import {
  * (delivery ledger, failure recording, unsubscribe flows) stays fully
  * exercisable without touching the network.
  *
- * `smtp`: a compact SMTP client over node:net/node:tls (EHLO → STARTTLS →
- * AUTH PLAIN → MAIL/RCPT/DATA). No third-party dependency, so no supply-chain
- * risk for a single outbound relay. The server `250` response id is captured
- * as the provider message id. Certificate verification stays on.
+ * `smtp`: Nodemailer against the configured relay (STARTTLS on 587 or implicit
+ * TLS on 465 via SMTP_SECURE). It sends a proper `From:` with the configured
+ * display name and resolves with Nodemailer's `messageId`. Certificate
+ * verification stays on by default.
  *
  * Tests can force a specific transport (e.g. one that always rejects) with
  * `setTransportOverride`.
@@ -49,144 +50,38 @@ export async function logTransport(payload) {
   return { messageId: null }
 }
 
-/** Line reader over any duplex stream with a shared continuation buffer. */
-function makeLineReader(socket, bufferRef) {
-  return (timeoutMs = 15000) =>
-    new Promise((resolve, reject) => {
-      const startedAt = Date.now()
-      const timer = setTimeout(() => {
-        reject(new Error("SMTP read timeout"))
-      }, timeoutMs)
+/**
+ * One lazily-created, cached Nodemailer transporter for the configured relay.
+ * External mutable transports make the pipeline hard to test, so the cache is
+ * module-local and the override hook keeps tests deterministic.
+ */
+let transporter = null
 
-      const drain = () => {
-        const idx = bufferRef.value.indexOf("\n")
-        if (idx === -1) return false
-        const line = bufferRef.value.slice(0, idx).replace(/\r$/, "")
-        bufferRef.value = bufferRef.value.slice(idx + 1)
-        clearTimeout(timer)
-        resolve(line)
-        return true
-      }
-      if (drain()) return
-
-      const onData = (chunk) => {
-        bufferRef.value += chunk.toString("utf8")
-        if (drain()) {
-          socket.off("data", onData)
-        }
-      }
-      socket.on("data", onData)
-    })
-}
-
-function responseCode(line) {
-  return line.slice(0, 3)
-}
-
-/** Open the cleartext or TLS socket, return it plus a line reader. */
-function openSocket() {
-  const bufferRef = { value: "" }
-  const socket = SMTP_SECURE
-    ? tlsConnect({ host: SMTP_HOST, port: SMTP_PORT, servername: SMTP_HOST })
-    : createConnection({ host: SMTP_HOST, port: SMTP_PORT })
-  return new Promise((resolve, reject) => {
-    socket.once("error", reject)
-    socket.once("connect", () =>
-      resolve({ socket, readLine: makeLineReader(socket, bufferRef) }),
-    )
-  })
-}
-
-function upgradeToTls(socket, readLine) {
-  return new Promise((resolve, reject) => {
-    const bufferRef = { value: "" }
-    const tls = tlsConnect({ socket, servername: SMTP_HOST })
-    tls.once("error", reject)
-    tls.once("secureConnect", () =>
-      resolve({ socket: tls, readLine: makeLineReader(tls, bufferRef) }),
-    )
-    void readLine // previous reader is dropped with the cleartext socket
-  })
-}
-
-async function expectCode(line, accepted, label = "response") {
-  const code = responseCode(line)
-  if (!accepted.some((c) => String(c) === code)) {
-    throw new Error(`SMTP ${label} failed: ${line}`)
-  }
-  return code
-}
-
-/** Minimal SMTP client. Resolves `{ messageId }` or throws. */
-export async function smtpTransport(payload) {
+function getTransporter() {
+  if (transporter) return transporter
   if (!SMTP_HOST) throw new Error("smtpTransport requires SMTP_HOST")
-  const { to, from, subject, html, text } = payload
+  transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    ...(SMTP_USER && SMTP_PASS
+      ? { auth: { user: SMTP_USER, pass: SMTP_PASS } }
+      : {}),
+  })
+  return transporter
+}
 
-  let { socket, readLine } = await openSocket()
-  try {
-    await expectCode(await readLine(), [220], "greeting")
-
-    for (const line of [`EHLO ${SMTP_HOST.replace(/:\d+$/, "")}`]) {
-      socket.write(`${line}\r\n`)
-      // EHLO may be multiline (250-… many) — just read until the last one.
-      let reply
-      do {
-        reply = await readLine()
-        await expectCode(reply, [250])
-      } while (/^250-/.test(reply))
-    }
-
-    if (!SMTP_SECURE) {
-      socket.write("STARTTLS\r\n")
-      const starttls = await readLine()
-      const startCode = await expectCode(starttls, [220])
-      if (startCode === "220") {
-        ;({ socket, readLine } = await upgradeToTls(socket, readLine))
-        socket.write(`EHLO ${SMTP_HOST.replace(/:\d+$/, "")}\r\n`)
-        let reply
-        do {
-          reply = await readLine()
-          await expectCode(reply, [250])
-        } while (/^250-/.test(reply))
-      }
-    }
-
-    if (SMTP_USER && SMTP_PASS) {
-      socket.write(
-        `AUTH PLAIN ${Buffer.from(`\0${SMTP_USER}\0${SMTP_PASS}`).toString("base64")}\r\n`,
-      )
-      await expectCode(await readLine(), [235], "auth")
-    }
-
-    const envelopeFrom = from ?? "no-reply@localhost"
-    socket.write(`MAIL FROM:<${envelopeFrom}>\r\n`)
-    await expectCode(await readLine(), [250], "mail from")
-    socket.write(`RCPT TO:<${to}>\r\n`)
-    await expectCode(await readLine(), [250, 251], "rcpt to")
-    socket.write("DATA\r\n")
-    await expectCode(await readLine(), [354], "data")
-
-    const dataLines = [
-      `From: ${from ?? "Estate <no-reply@localhost>"}`,
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      "MIME-Version: 1.0",
-      "Content-Type: text/html; charset=utf-8",
-      "Content-Transfer-Encoding: base64",
-      "",
-      Buffer.from(html || text || "").toString("base64"),
-    ]
-    socket.write(`${dataLines.join("\r\n")}\r\n.\r\n`)
-    const finalLine = await readLine()
-    await expectCode(finalLine, [250], "message accepted")
-
-    socket.write("QUIT\r\n")
-    void readLine()
-    const match = /(?:id|message-id)=([A-Za-z0-9._-]+)/i.exec(finalLine)
-    socket.destroy()
-    return { messageId: match ? match[1] : null }
-  } catch (err) {
-    socket.destroy()
-    throw err instanceof Error ? err : new Error(String(err))
-  }
+/** Nodemailer SMTP transport — resolves `{ messageId }` or throws. */
+export async function smtpTransport(payload) {
+  const { to, subject, html, text } = payload
+  const fromName = SMTP_FROM_NAME || "Estate"
+  const fromEmail = SMTP_FROM_EMAIL || "no-reply@localhost"
+  const info = await getTransporter().sendMail({
+    from: fromName ? `"${fromName}" <${fromEmail}>` : fromEmail,
+    to,
+    subject,
+    html: html ?? undefined,
+    text: text ?? undefined,
+  })
+  return { messageId: info?.messageId ?? null }
 }

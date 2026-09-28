@@ -87,7 +87,7 @@ export default function AdminLayout() {
           className="fixed inset-y-0 left-0 w-64 hidden md:flex flex-col"
           style={{ backgroundColor: "#0F0F0D" }}
         >
-          <div className="px-6 py-6">
+          <div className="px-6 py-6 shrink-0">
             <span
               className="text-xl font-light tracking-[0.3em] uppercase"
               style={{ fontFamily: "var(--font-display)", color: "#F5F0E8" }}
@@ -98,7 +98,9 @@ export default function AdminLayout() {
               Admin
             </p>
           </div>
-          <NavList />
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <NavList />
+          </div>
           <SidebarFooter />
         </aside>
 
@@ -113,7 +115,7 @@ export default function AdminLayout() {
               className="absolute inset-y-0 left-0 w-72 flex flex-col"
               style={{ backgroundColor: "#0F0F0D" }}
             >
-              <div className="flex items-center justify-between px-6 py-6">
+              <div className="flex items-center justify-between px-6 py-6 shrink-0">
                 <span
                   className="text-xl font-light tracking-[0.3em] uppercase"
                   style={{
@@ -131,7 +133,9 @@ export default function AdminLayout() {
                   ×
                 </button>
               </div>
-              <NavList onNavigate={() => setOpen(false)} />
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <NavList onNavigate={() => setOpen(false)} />
+              </div>
               <SidebarFooter />
             </aside>
           </div>

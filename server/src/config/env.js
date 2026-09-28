@@ -97,9 +97,9 @@ if (IS_PRODUCTION && (CORS_ORIGINS.length === 0 || CORS_ORIGINS[0] === "*")) {
 //
 // Provider is pluggable: `log` (default) writes a printable receipt to the
 // stdout and never touches the network — used in development and tests so
-// the whole pipeline (journals, deliveries, failure recording) can be
-// exercised without SMTP credentials. `smtp` talks SMTP over node:net/tls
-// (STARTTLS or implicit TLS via SMTP_SECURE) and is the production transport.
+// the whole pipeline (deliveries, failure recording) can be exercised without
+// SMTP credentials. `smtp` delivers through Nodemailer (STARTTLS on 587 or
+// implicit TLS via SMTP_SECURE) and is the production transport.
 //
 // Credentials are server-side only: they are read here and are never exposed
 // to the browser. Production boots with `log` only after a loud warning — a

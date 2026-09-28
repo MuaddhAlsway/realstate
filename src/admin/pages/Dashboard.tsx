@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { adminApi, type DashboardData } from "../../services/admin"
+import { Link } from "react-router-dom"
+import { adminApi, type DashboardData, type EmailCampaignStatus } from "../../services/admin"
 import { Badge, EmptyState, Spinner, formatDate } from "../ui"
 
 function StatCard({
@@ -97,6 +98,22 @@ export default function Dashboard() {
         <StatCard label="Agents" value={data.agents} />
         <StatCard label="Favorites" value={data.favorites} />
         <StatCard label="Neighborhoods" value={data.neighborhoods} />
+        <StatCard label="Amenities" value={data.amenities} />
+        <StatCard
+          label="Subscribers"
+          value={data.newsletter.subscribers.active}
+          hint={`${data.newsletter.subscribers.total} total · ${data.newsletter.subscribers.unsubscribed} unsubscribed`}
+        />
+        <StatCard
+          label="Emails sent"
+          value={data.newsletter.deliveries.sent}
+          hint={`${data.newsletter.deliveries.total} total attempts`}
+        />
+        <StatCard
+          label="Emails failed"
+          value={data.newsletter.deliveries.failed}
+          hint={data.newsletter.deliveries.failed > 0 ? "Check Email History" : "All clear"}
+        />
         <div
           className="p-6"
           style={{
@@ -114,7 +131,149 @@ export default function Dashboard() {
             {properties.byPurpose.SALE} sale · {properties.byPurpose.RENT} rent
           </p>
         </div>
-        <StatCard label="Amenities" value={data.amenities} />
+      </div>
+
+      <div className="mb-12">
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <h2
+              className="text-2xl font-light"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Email & Newsletter
+            </h2>
+            <p className="text-sm font-light text-[#6B6560] mt-1">
+              Manage your subscriber list and send campaigns automatically.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/admin/newsletter/compose"
+              className="text-xs tracking-[0.2em] uppercase font-light px-4 py-2 cursor-pointer"
+              style={{ backgroundColor: "#C9A96E", color: "#0F0F0D" }}
+            >
+              Compose email
+            </Link>
+            <Link
+              to="/admin/newsletter"
+              className="text-xs tracking-[0.2em] uppercase font-light px-4 py-2 cursor-pointer bg-transparent"
+              style={{ border: "1px solid rgba(15,15,13,0.2)", color: "#0F0F0D" }}
+            >
+              Subscribers
+            </Link>
+            <Link
+              to="/admin/newsletter/campaigns"
+              className="text-xs tracking-[0.2em] uppercase font-light px-4 py-2 cursor-pointer bg-transparent"
+              style={{ border: "1px solid rgba(15,15,13,0.2)", color: "#0F0F0D" }}
+            >
+              Campaigns
+            </Link>
+            <Link
+              to="/admin/newsletter/history"
+              className="text-xs tracking-[0.2em] uppercase font-light px-4 py-2 cursor-pointer bg-transparent"
+              style={{ border: "1px solid rgba(15,15,13,0.2)", color: "#0F0F0D" }}
+            >
+              Email history
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div
+            className="p-6"
+            style={{
+              backgroundColor: "#FFFFFF",
+              border: "1px solid rgba(15,15,13,0.1)",
+            }}
+          >
+            <h3 className="text-[11px] tracking-[0.18em] uppercase font-light text-[#6B6560] mb-4">
+              Delivery status
+            </h3>
+            {data.emailProvider === "smtp" ? (
+              <>
+                <p className="flex items-center gap-2 text-sm font-light text-[#0F0F0D]">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full"
+                    style={{ backgroundColor: "#3A7D44" }}
+                  />
+                  SMTP active — sending via Nodemailer
+                </p>
+                <p className="text-xs font-light text-[#A09890] mt-3">
+                  Broadcasts and agent emails go out automatically to your
+                  subscriber list.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="flex items-center gap-2 text-sm font-light text-[#0F0F0D]">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full"
+                    style={{ backgroundColor: "#C9A96E" }}
+                  />
+                  Log mode (no delivery)
+                </p>
+                <p className="text-xs font-light text-[#A09890] mt-3">
+                  Outbound email is disabled. To send automatically, set{" "}
+                  <code className="text-[#0F0F0D]">EMAIL_PROVIDER=smtp</code>{" "}
+                  with valid SMTP credentials on the server, e.g. for Gmail:
+                  host{" "}
+                  <code className="text-[#0F0F0D]">smtp.gmail.com</code>, port{" "}
+                  <code className="text-[#0F0F0D]">587</code>, your Gmail
+                  address as user plus a 16-character Google App Password.
+                </p>
+              </>
+            )}
+            <div className="mt-6 pt-6 flex flex-col gap-2" style={{ borderTop: "1px solid rgba(15,15,13,0.08)" }}>
+              <Link
+                to="/admin/newsletter/history"
+                className="text-xs tracking-[0.2em] uppercase font-light text-[#6B6560] hover:text-[#0F0F0D] transition-colors"
+              >
+                View delivery history →
+              </Link>
+            </div>
+          </div>
+
+          <div
+            className="p-6 lg:col-span-2"
+            style={{
+              backgroundColor: "#FFFFFF",
+              border: "1px solid rgba(15,15,13,0.1)",
+            }}
+          >
+            <h3 className="text-[11px] tracking-[0.18em] uppercase font-light text-[#6B6560] mb-4">
+              Recent campaigns
+            </h3>
+            {data.newsletter.recentCampaigns.length === 0 ? (
+              <EmptyState message="No campaigns yet — compose your first email to get started." />
+            ) : (
+              <div className="flex flex-col">
+                {data.newsletter.recentCampaigns.map((c) => {
+                  const tone: Record<EmailCampaignStatus, "green" | "gold" | "red" | "neutral"> = {
+                    SENT: "green",
+                    SENDING: "gold",
+                    FAILED: "red",
+                    DRAFT: "neutral",
+                  }
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between gap-4 py-3"
+                      style={{ borderBottom: "1px solid rgba(15,15,13,0.08)" }}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-light text-[#0F0F0D] truncate">{c.subject}</p>
+                        <p className="text-xs font-light text-[#A09890] mt-0.5">
+                          {c.sentAt ? `Sent ${formatDate(c.sentAt)}` : `Created ${formatDate(c.createdAt)}`}
+                        </p>
+                      </div>
+                      <Badge tone={tone[c.status]}>{c.status}</Badge>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-12">

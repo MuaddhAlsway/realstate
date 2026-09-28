@@ -148,7 +148,6 @@ describe("GET /api/v1/admin/dashboard", () => {
     expect(d.neighborhoods).toBeTypeOf("number")
 
     expect(d.amenities).toBeTypeOf("number")
-
     expect(d.viewingRequests.byStatus).toMatchObject({
       PENDING: expect.any(Number),
 
@@ -158,6 +157,30 @@ describe("GET /api/v1/admin/dashboard", () => {
 
       CANCELLED: expect.any(Number),
     })
+
+    expect(d.emailProvider).toBeTypeOf("string")
+
+    expect(d.newsletter).toMatchObject({
+      subscribers: {
+        total: expect.any(Number),
+
+        active: expect.any(Number),
+
+        unsubscribed: expect.any(Number),
+      },
+
+      deliveries: {
+        total: expect.any(Number),
+
+        sent: expect.any(Number),
+
+        failed: expect.any(Number),
+      },
+
+      recentCampaigns: expect.any(Array),
+    })
+
+    expect(d.deals).toBeTypeOf("number")
   })
 })
 

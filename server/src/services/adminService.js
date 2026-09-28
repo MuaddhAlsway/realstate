@@ -12,6 +12,8 @@ import { translateDatabaseError } from "../errors/pg.js"
 
 import { hashPassword } from "../auth/password.js"
 
+import { EMAIL_PROVIDER } from "../config/env.js"
+
 /**
  * Admin aggregation + reference reads (Phase 09).
  *
@@ -37,6 +39,12 @@ const {
   favorites,
 
   inquiries,
+
+  newsletterSubscribers,
+
+  emailCampaigns,
+
+  emailDeliveries,
 } = schema
 
 function requireDb() {
@@ -105,6 +113,14 @@ export async function getDashboard() {
     inquiriesInProgress,
     inquiriesCompleted,
     inquiriesCancelled,
+
+    subscribersTotal,
+    subscribersActive,
+    subscribersUnsubscribed,
+    deliveriesTotal,
+    deliveriesSent,
+    deliveriesFailed,
+    recentCampaigns,
   ] = await Promise.all([
     countAll(properties)(),
 
@@ -249,9 +265,64 @@ export async function getDashboard() {
 
         .where(eq(inquiries.status, "CANCELLED")),
     ),
+
+    countAll(newsletterSubscribers)(),
+
+    run(() =>
+      db.select({ n: count() })
+
+        .from(newsletterSubscribers)
+
+        .where(eq(newsletterSubscribers.status, "ACTIVE")),
+    ),
+
+    run(() =>
+      db.select({ n: count() })
+
+        .from(newsletterSubscribers)
+
+        .where(eq(newsletterSubscribers.status, "UNSUBSCRIBED")),
+    ),
+
+    countAll(emailDeliveries)(),
+
+    run(() =>
+      db.select({ n: count() })
+
+        .from(emailDeliveries)
+
+        .where(eq(emailDeliveries.status, "SENT")),
+    ),
+
+    run(() =>
+      db.select({ n: count() })
+
+        .from(emailDeliveries)
+
+        .where(eq(emailDeliveries.status, "FAILED")),
+    ),
+
+    run(() =>
+      db.select({
+        id: emailCampaigns.id,
+        subject: emailCampaigns.subject,
+        status: emailCampaigns.status,
+        sentAt: emailCampaigns.sentAt,
+        createdAt: emailCampaigns.createdAt,
+      })
+
+        .from(emailCampaigns)
+
+        .orderBy(desc(emailCampaigns.createdAt))
+
+        .limit(4),
+    ),
   ])
 
   const n = (row) => row?.[0]?.n ?? 0
+
+  const toIso = (value) =>
+    value instanceof Date ? value.toISOString() : (value ?? null)
 
   return {
     properties: {
@@ -319,6 +390,40 @@ export async function getDashboard() {
     // Closed deals — completed inquiries are the pipeline's terminal row.
 
     deals: n(inquiriesCompleted),
+
+    emailProvider: EMAIL_PROVIDER,
+
+    newsletter: {
+      subscribers: {
+        total: n(subscribersTotal),
+
+        active: n(subscribersActive),
+
+        unsubscribed: n(subscribersUnsubscribed),
+      },
+
+      deliveries: {
+        total: n(deliveriesTotal),
+
+        sent: n(deliveriesSent),
+
+        failed: n(deliveriesFailed),
+      },
+
+      recentCampaigns: Array.isArray(recentCampaigns)
+        ? recentCampaigns.map((c) => ({
+            id: c.id,
+
+            subject: c.subject,
+
+            status: c.status,
+
+            sentAt: c.sentAt ? toIso(c.sentAt) : null,
+
+            createdAt: toIso(c.createdAt),
+          }))
+        : [],
+    },
   }
 }
 

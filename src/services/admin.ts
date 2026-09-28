@@ -15,6 +15,27 @@ export type PropertyType = "VILLA" | "APARTMENT" | "PENTHOUSE" | "DUPLEX"
 export type ViewingStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED"
 export type UserRole = "USER" | "AGENT" | "ADMIN"
 export type InquiryStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+export type EmailCampaignStatus = "DRAFT" | "SENDING" | "SENT" | "FAILED"
+
+export interface DashboardNewsletterSection {
+  subscribers: {
+    total: number
+    active: number
+    unsubscribed: number
+  }
+  deliveries: {
+    total: number
+    sent: number
+    failed: number
+  }
+  recentCampaigns: Array<{
+    id: string
+    subject: string
+    status: EmailCampaignStatus
+    sentAt: string | null
+    createdAt: string
+  }>
+}
 
 export interface DashboardData {
   properties: {
@@ -37,6 +58,8 @@ export interface DashboardData {
     byStatus: Record<InquiryStatus, number>
   }
   deals: number
+  emailProvider: string
+  newsletter: DashboardNewsletterSection
 }
 
 export interface AdminPropertySummary {
