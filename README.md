@@ -18,7 +18,7 @@
 ## 🧰 Tech Stack
 
 <img
-  src="assets/tech-stack.svg"
+  src="assets/techstack.png"
   alt="Estate technology stack diagram"
   width="900"
 />
