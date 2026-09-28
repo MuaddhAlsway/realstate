@@ -102,32 +102,48 @@ if (IS_PRODUCTION && (CORS_ORIGINS.length === 0 || CORS_ORIGINS[0] === "*")) {
 
 // Phase 10 — transactional + campaign email delivery.
 //
-// Provider is pluggable: `log` (default) writes a printable receipt to the
-// stdout and never touches the network — used in development and tests so
-// the whole pipeline (deliveries, failure recording) can be exercised without
-// SMTP credentials. `smtp` delivers through Nodemailer (STARTTLS on 587 or
-// implicit TLS via SMTP_SECURE) and is the production transport.
+// Provider is pluggable:
+//   `log`  (default) — writes a printable receipt to stdout and never touches
+//          the network. Used in development and tests so the whole pipeline
+//          (deliveries, failure recording) can be exercised without SMTP.
+//   `smtp` — Nodemailer against SMTP_HOST (STARTTLS on 587 when SMTP_SECURE is
+//          false; implicit TLS on 465 when true). The standard production path.
+//   `resend` — HTTPS call to the Resend API (POST api.resend.com/emails). The
+//          fallback transport for hosts whose egress blocks SMTP (EngineYard
+//          Render free tier is one example) — HTTPS egress is always allowed.
 //
 // Credentials are server-side only: they are read here and are never exposed
 // to the browser. Production boots with `log` only after a loud warning — a
 // free tier Render instance has no persistent outbound mail guarantee, but
 // the delivery ledger still records every attempt honestly.
 export const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || "log"
+
 export const SMTP_HOST = process.env.SMTP_HOST
 export const SMTP_PORT = Number(process.env.SMTP_PORT || 587)
 export const SMTP_USER = process.env.SMTP_USER
 export const SMTP_PASS = process.env.SMTP_PASS
+// SMTP_SECURE must become a real boolean — `Boolean("false") === true`, so
+// only the literal "true" enables implicit TLS on 465. Every other value
+// (the string "false", empty, unset) parses to false = STARTTLS on 587.
 export const SMTP_SECURE =
   String(process.env.SMTP_SECURE || "").toLowerCase() === "true"
 export const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL
 export const SMTP_FROM_NAME = process.env.SMTP_FROM_NAME
+
+// Resend HTTPS provider. The API key is server-only. The From address must be
+// an identity Resend accepts: `onboarding@resend.dev` for testing, or a
+// verified domain you own — a personal Gmail address CANNOT be the From.
+export const RESEND_API_KEY = process.env.RESEND_API_KEY
+export const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL
+export const RESEND_FROM_NAME = process.env.RESEND_FROM_NAME
 
 // Outward-facing base URL used to build links inside emails (unsubscribe,
 // site). Falls back to the request origin when a request is available.
 export const EMAIL_BASE_URL = process.env.EMAIL_BASE_URL
 
 export const EMAIL_LOG_TRANSPORT = EMAIL_PROVIDER === "log"
-export const EMAIL_CONFIGURED = EMAIL_PROVIDER === "smtp"
+export const EMAIL_CONFIGURED =
+  EMAIL_PROVIDER === "smtp" || EMAIL_PROVIDER === "resend"
 
 // HMAC key for deterministic unsubscribe tokens (see newsletterService).
 // Production refuses to boot without it; dev/test use a stable fixture.
@@ -137,16 +153,52 @@ if (IS_PRODUCTION && !isDefined(process.env.UNSUBSCRIBE_SECRET)) {
   throw new Error("UNSUBSCRIBE_SECRET must be set in production")
 }
 
-if (IS_PRODUCTION && EMAIL_CONFIGURED && !isDefined(SMTP_HOST)) {
-  throw new Error(
-    "SMTP_HOST + SMTP_FROM_EMAIL must be set when EMAIL_PROVIDER=smtp",
-  )
+if (IS_PRODUCTION && EMAIL_PROVIDER === "smtp") {
+  if (!isDefined(SMTP_HOST) || !isDefined(SMTP_FROM_EMAIL)) {
+    throw new Error(
+      "SMTP_HOST + SMTP_FROM_EMAIL must be set when EMAIL_PROVIDER=smtp",
+    )
+  }
+}
+if (IS_PRODUCTION && EMAIL_PROVIDER === "resend") {
+  if (!isDefined(RESEND_API_KEY) || !isDefined(RESEND_FROM_EMAIL)) {
+    throw new Error(
+      "RESEND_API_KEY + RESEND_FROM_EMAIL must be set when EMAIL_PROVIDER=resend",
+    )
+  }
 }
 if (IS_PRODUCTION && EMAIL_LOG_TRANSPORT) {
   // eslint-disable-next-line no-console
   console.warn(
     "[env] EMAIL_PROVIDER is unset (log transport) — campaign/agent emails will " +
       "be recorded in the delivery ledger but not delivered. Set EMAIL_PROVIDER=smtp " +
-      "plus SMTP_HOST/SMTP_FROM_EMAIL to enable real delivery.",
+      "(SMTP_HOST/SMTP_PORT/SMTP_SECURE/SMTP_FROM_EMAIL) or EMAIL_PROVIDER=resend " +
+      "(RESEND_API_KEY/RESEND_FROM_EMAIL) to enable real delivery.",
   )
+}
+
+// Safe startup diagnostics — confirm WHICH provider + settings the running
+// process is actually using, without ever printing credentials (SMTP_PASS,
+// RESEND_API_KEY, DATABASE_URL, JWT_SECRET, UNSUBSCRIBE_SECRET are all
+// excluded here). Intentionally skipped under test to keep runner output clean.
+if (!IS_TEST) {
+  if (EMAIL_PROVIDER === "smtp") {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[env] email provider=smtp host=${SMTP_HOST} port=${SMTP_PORT} ` +
+        `secure=${SMTP_SECURE} tlsEnabled=${
+          SMTP_SECURE ? "implicit-465" : "STARTTLS-587"
+        } ` +
+        `fromConfigured=${isDefined(SMTP_FROM_EMAIL)}`,
+    )
+  } else if (EMAIL_PROVIDER === "resend") {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[env] email provider=resend fromConfigured=${isDefined(RESEND_FROM_EMAIL)} ` +
+        `keyConfigured=${isDefined(RESEND_API_KEY)}`,
+    )
+  } else {
+    // eslint-disable-next-line no-console
+    console.log("[env] email provider=log (no real delivery)")
+  }
 }

@@ -203,6 +203,20 @@ export default function Dashboard() {
                   subscriber list.
                 </p>
               </>
+            ) : data.emailProvider === "resend" ? (
+              <>
+                <p className="flex items-center gap-2 text-sm font-light text-[#0F0F0D]">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full"
+                    style={{ backgroundColor: "#3A7D44" }}
+                  />
+                  Resend active — sending via HTTPS API
+                </p>
+                <p className="text-xs font-light text-[#A09890] mt-3">
+                  Broadcasts and agent emails go out automatically through the
+                  Resend API (no SMTP egress required).
+                </p>
+              </>
             ) : (
               <>
                 <p className="flex items-center gap-2 text-sm font-light text-[#0F0F0D]">
@@ -219,7 +233,10 @@ export default function Dashboard() {
                   host{" "}
                   <code className="text-[#0F0F0D]">smtp.gmail.com</code>, port{" "}
                   <code className="text-[#0F0F0D]">587</code>, your Gmail
-                  address as user plus a 16-character Google App Password.
+                  address as user plus a 16-character Google App Password. If
+                  SMTP egress is blocked on the host, use{" "}
+                  <code className="text-[#0F0F0D]">EMAIL_PROVIDER=resend</code>{" "}
+                  with a Resend API key instead.
                 </p>
               </>
             )}
