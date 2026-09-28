@@ -64,6 +64,12 @@ function getTransporter() {
     host: SMTP_HOST,
     port: SMTP_PORT,
     secure: SMTP_SECURE,
+    // Bound the whole send so a silent relay (e.g. egress filtering) fails in
+    // seconds — Nodemailer's 2-minute defaults would otherwise block
+    // subscribes/broadcasts for minutes before surfacing the ETIMEDOUT.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
     ...(SMTP_USER && SMTP_PASS
       ? { auth: { user: SMTP_USER, pass: SMTP_PASS } }
       : {}),
