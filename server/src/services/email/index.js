@@ -92,8 +92,19 @@ export async function sendEmail({
     status = "SENT"
     providerMessageId = result?.messageId ?? null
   } catch (err) {
-    errorMessage =
-      String(err?.message ?? err).slice(0, 500) || "email transport failed"
+    // Surface the real reason (code + message) so a FAILED delivery row is
+    // actually actionable; fall back only when the transport threw nothing.
+    const detail = [
+      err?.code ? String(err.code) : "",
+      String(err?.message ?? err),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim()
+    errorMessage = (detail || "email transport failed").slice(0, 500)
+    console.error(
+      `[email] delivery failed to ${to} (subject "${subject}"): ${errorMessage}`,
+    )
   }
 
   await run(() =>
