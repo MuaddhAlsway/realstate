@@ -1,4 +1,11 @@
 import { loadEnvFile } from "node:process"
+import { setDefaultResultOrder } from "node:dns"
+
+// Some hosting egress stacks (notably free-tier Render) have no IPv6 route;
+// Node resolves hostnames AAAA-first and SMTP connects then fail with
+// ENETUNREACH on Gmail's IPv6 range. Prefer IPv4 for every socket in this
+// process (HTTP API + SMTP + Postgres), falling back to IPv6 when absent.
+setDefaultResultOrder("ipv4first")
 
 // Load `.env` from the process working directory before any environment
 // reads below. Missing files are fine (the API runs from shell env vars).
