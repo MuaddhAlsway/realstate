@@ -1,4 +1,5 @@
 import { asyncHandler } from "../../middleware/error.js"
+
 import * as contentService from "../../services/contentService.js"
 
 /**
@@ -10,10 +11,12 @@ import * as contentService from "../../services/contentService.js"
 
 export const listContent = asyncHandler(async (req, res) => {
   const data = await contentService.listAllContent()
+
   res.json({ success: true, data })
 })
 
 export const getContent = asyncHandler(async (req, res) => {
   const data = await contentService.getSectionContent(req.params.section)
+
   res.json({ success: true, data })
 })

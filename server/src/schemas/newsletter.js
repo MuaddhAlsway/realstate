@@ -34,6 +34,19 @@ export const newsletterSubscriberQuerySchema = z
   })
   .strict()
 
+export const emailDeliveryQuerySchema = z
+  .object({
+    kind: z.enum(["WELCOME", "CAMPAIGN", "AGENT"]).optional(),
+    status: z.enum(["QUEUED", "SENT", "FAILED"]).optional(),
+    q: z.string().trim().max(200).optional(),
+    page: intParam("page must be a positive integer", { min: 1 }).default(1),
+    limit: intParam("limit must be an integer between 1 and 50", {
+      min: 1,
+      max: 50,
+    }).default(20),
+  })
+  .strict()
+
 export const campaignCreateSchema = z
   .object({
     name: z.string().trim().min(1, "campaign name is required").max(200),

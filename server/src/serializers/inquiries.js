@@ -96,8 +96,7 @@ export function serializeInquiryDetail(row) {
     customer: row.user
       ? { id: row.user.id, name: row.user.name, email: row.user.email }
       : null,
-    thread:
-      row.conversation?.messages?.map((m) => serializeMessage(m)) ?? [],
+    thread: row.conversation?.messages?.map((m) => serializeMessage(m)) ?? [],
     history:
       row.history?.map((h) => ({
         fromStatus: h.fromStatus ?? null,
@@ -105,7 +104,11 @@ export function serializeInquiryDetail(row) {
         note: h.note ?? null,
         createdAt: toIso(h.createdAt),
         changedBy: h.changedBy
-          ? { id: h.changedBy.id, name: h.changedBy.name, role: h.changedBy.role }
+          ? {
+              id: h.changedBy.id,
+              name: h.changedBy.name,
+              role: h.changedBy.role,
+            }
           : null,
       })) ?? [],
   }
@@ -162,6 +165,8 @@ export function serializeAgentDashboard(dashboard) {
     deals: dashboard.deals,
     properties: dashboard.properties,
     notifications: dashboard.notifications,
-    recentInquiries: (dashboard.recentInquiries ?? []).map(serializeInquiryList),
+    recentInquiries: (dashboard.recentInquiries ?? []).map(
+      serializeInquiryList,
+    ),
   }
 }

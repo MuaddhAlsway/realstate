@@ -395,7 +395,9 @@ export const inquiries = pgTable(
     customerEmail: text("customer_email").notNull(),
     customerPhone: text("customer_phone"),
     message: text("message").notNull(),
-    preferredContactMethod: text("preferred_contact_method").notNull().default("EMAIL"),
+    preferredContactMethod: text("preferred_contact_method")
+      .notNull()
+      .default("EMAIL"),
     viewingDate: date("viewing_date"),
     viewingTime: time("viewing_time"),
     status: inquiryStatusEnum("status").notNull().default("PENDING"),
@@ -452,7 +454,10 @@ export const messages = pgTable(
       .defaultNow(),
   },
   (t) => [
-    index("messages_conversation_created_idx").on(t.conversationId, t.createdAt),
+    index("messages_conversation_created_idx").on(
+      t.conversationId,
+      t.createdAt,
+    ),
   ],
 )
 
@@ -640,8 +645,12 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   sentMessages: many(messages, { relationName: "messages_sender" }),
   notifications: many(notifications),
   statusChanges: many(inquiryStatusHistory),
-  completedInquiries: many(inquiries, { relationName: "inquiries_completed_by" }),
-  createdCampaigns: many(emailCampaigns, { relationName: "campaigns_created_by" }),
+  completedInquiries: many(inquiries, {
+    relationName: "inquiries_completed_by",
+  }),
+  createdCampaigns: many(emailCampaigns, {
+    relationName: "campaigns_created_by",
+  }),
   agent: one(agents, { fields: [users.id], references: [agents.userId] }),
 }))
 
@@ -805,21 +814,27 @@ export const inquiryStatusHistoryRelations = relations(
   }),
 )
 
-export const emailCampaignsRelations = relations(emailCampaigns, ({ many, one }) => ({
-  createdBy: one(users, {
-    fields: [emailCampaigns.createdByUserId],
-    references: [users.id],
-    relationName: "campaigns_created_by",
+export const emailCampaignsRelations = relations(
+  emailCampaigns,
+  ({ many, one }) => ({
+    createdBy: one(users, {
+      fields: [emailCampaigns.createdByUserId],
+      references: [users.id],
+      relationName: "campaigns_created_by",
+    }),
+    deliveries: many(emailDeliveries),
   }),
-  deliveries: many(emailDeliveries),
-}))
+)
 
-export const emailDeliveriesRelations = relations(emailDeliveries, ({ one }) => ({
-  campaign: one(emailCampaigns, {
-    fields: [emailDeliveries.campaignId],
-    references: [emailCampaigns.id],
+export const emailDeliveriesRelations = relations(
+  emailDeliveries,
+  ({ one }) => ({
+    campaign: one(emailCampaigns, {
+      fields: [emailDeliveries.campaignId],
+      references: [emailCampaigns.id],
+    }),
   }),
-}))
+)
 
 export const agentMessagesRelations = relations(agentMessages, ({ one }) => ({
   agent: one(agents, {

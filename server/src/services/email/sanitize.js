@@ -10,14 +10,44 @@
  */
 
 const WHITELISTED_TAGS = new Set([
-  "p", "br", "b", "i", "u", "em", "strong", "ul", "ol", "li", "blockquote",
-  "h1", "h2", "h3", "h4", "span", "div", "a", "hr", "table", "thead",
-  "tbody", "tr", "th", "td", "img",
+  "p",
+  "br",
+  "b",
+  "i",
+  "u",
+  "em",
+  "strong",
+  "ul",
+  "ol",
+  "li",
+  "blockquote",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "span",
+  "div",
+  "a",
+  "hr",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "img",
 ])
 
 const VOID_TAGS = new Set(["br", "hr", "img"])
 
-const ALLOWED_ATTRS = new Set(["href", "title", "alt", "src", "width", "height"])
+const ALLOWED_ATTRS = new Set([
+  "href",
+  "title",
+  "alt",
+  "src",
+  "width",
+  "height",
+])
 
 const SAFE_SCHEMES = new Set(["http:", "https:", "mailto:"])
 
@@ -45,8 +75,14 @@ export function sanitizeHtml(input, { allowImages = true } = {}) {
   // Remove scripts/styles and whole subtrees first so their content cannot
   // survive as markup later.
   html = html
-    .replace(/<\s*(script|style|iframe|object|embed|frame|frameset|base|meta|link|form|input|button|select|textarea)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
-    .replace(/<\s*\/?\s*(script|style|iframe|object|embed|frame|frameset|base|meta|link)[^>]*>/gi, "")
+    .replace(
+      /<\s*(script|style|iframe|object|embed|frame|frameset|base|meta|link|form|input|button|select|textarea)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi,
+      "",
+    )
+    .replace(
+      /<\s*\/?\s*(script|style|iframe|object|embed|frame|frameset|base|meta|link)[^>]*>/gi,
+      "",
+    )
 
   // Strip every attribute that is not explicitly allowed (and drop on*
   // handlers + javascript: URLs before we even look at href).
@@ -64,8 +100,9 @@ export function sanitizeHtml(input, { allowImages = true } = {}) {
     )
 
   // Unwhitelisted tags: drop the tags, keep the text.
-  html = html.replace(/<\s*\/?\s*([a-zA-Z][a-zA-Z0-9]*)\s*[^>]*>/g, (match, tag) =>
-    WHITELISTED_TAGS.has(tag.toLowerCase()) ? match : "",
+  html = html.replace(
+    /<\s*\/?\s*([a-zA-Z][a-zA-Z0-9]*)\s*[^>]*>/g,
+    (match, tag) => (WHITELISTED_TAGS.has(tag.toLowerCase()) ? match : ""),
   )
 
   // Close atomic image handling:

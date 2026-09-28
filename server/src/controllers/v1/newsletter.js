@@ -22,9 +22,12 @@ import {
 
 export const subscribe = asyncHandler(async (req, res) => {
   const baseUrl = baseUrlFromRequest(req)
-  const { subscriber, created } = await newsletterService.subscribe(req.body.email, {
-    baseUrl,
-  })
+  const { subscriber, created } = await newsletterService.subscribe(
+    req.body.email,
+    {
+      baseUrl,
+    },
+  )
   res.status(created ? 201 : 200).json({
     success: true,
     data: serializeSubscriber(subscriber),
@@ -32,7 +35,9 @@ export const subscribe = asyncHandler(async (req, res) => {
 })
 
 export const unsubscribe = asyncHandler(async (req, res) => {
-  const subscriber = await newsletterService.unsubscribeToken(req.parsedQuery.token)
+  const subscriber = await newsletterService.unsubscribeToken(
+    req.parsedQuery.token,
+  )
   res.json({ success: true, data: serializeSubscriber(subscriber) })
 })
 
@@ -80,9 +85,12 @@ export const sendTestCampaign = asyncHandler(async (req, res) => {
 
 export const sendCampaign = asyncHandler(async (req, res) => {
   const baseUrl = baseUrlFromRequest(req)
-  const result = await newsletterService.sendCampaignToSubscribers(req.params.id, {
-    baseUrl,
-  })
+  const result = await newsletterService.sendCampaignToSubscribers(
+    req.params.id,
+    {
+      baseUrl,
+    },
+  )
   res.status(202).json({ success: true, data: result })
 })
 

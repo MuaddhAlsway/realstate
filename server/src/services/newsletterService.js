@@ -41,7 +41,9 @@ export function hashToken(token) {
 
 /** Deterministic, non-enumerable unsubscribe token for a subscriber id. */
 export function unsubscribeTokenFor(subscriberId) {
-  return createHmac("sha256", UNSUBSCRIBE_SECRET).update(String(subscriberId)).digest("hex")
+  return createHmac("sha256", UNSUBSCRIBE_SECRET)
+    .update(String(subscriberId))
+    .digest("hex")
 }
 
 function requireDb() {
@@ -68,7 +70,9 @@ async function run(fn) {
 
 function findSubscriberById(db, id) {
   return run(() =>
-    db.query.newsletterSubscribers.findFirst({ where: eq(newsletterSubscribers.id, id) }),
+    db.query.newsletterSubscribers.findFirst({
+      where: eq(newsletterSubscribers.id, id),
+    }),
   )
 }
 
@@ -105,7 +109,13 @@ async function sendWelcome(subscriber, baseUrl) {
     unsubscribeUrl: siteUrl ? unsubscribeUrl(subscriber, siteUrl) : null,
     siteUrl,
   })
-  await sendEmail({ to: subscriber.email, subject, html, text, kind: "WELCOME" })
+  await sendEmail({
+    to: subscriber.email,
+    subject,
+    html,
+    text,
+    kind: "WELCOME",
+  })
 }
 
 // ── Public subscription ────────────────────────────────────────────────
@@ -129,8 +139,7 @@ export async function subscribe(emailInput, { baseUrl } = {}) {
   let created = false
   try {
     const [inserted] = await run(() =>
-      db
-        .insert(newsletterSubscribers)
+      db.insert(newsletterSubscribers)
         .values({ id, email, unsubscribeTokenHash: tokenHash })
         .returning(),
     )
@@ -146,8 +155,7 @@ export async function subscribe(emailInput, { baseUrl } = {}) {
   const reactivated = !created && subscriber.status === "UNSUBSCRIBED"
   if (reactivated) {
     await run(() =>
-      db
-        .update(newsletterSubscribers)
+      db.update(newsletterSubscribers)
         .set({ status: "ACTIVE", unsubscribedAt: null, updatedAt: new Date() })
         .where(eq(newsletterSubscribers.id, subscriber.id)),
     )
@@ -190,9 +198,12 @@ export async function unsubscribeToken(rawToken) {
     )
   if (row.status !== "UNSUBSCRIBED") {
     await run(() =>
-      db
-        .update(newsletterSubscribers)
-        .set({ status: "UNSUBSCRIBED", unsubscribedAt: new Date(), updatedAt: new Date() })
+      db.update(newsletterSubscribers)
+        .set({
+          status: "UNSUBSCRIBED",
+          unsubscribedAt: new Date(),
+          updatedAt: new Date(),
+        })
         .where(eq(newsletterSubscribers.id, row.id)),
     )
   }
@@ -220,7 +231,9 @@ export async function listSubscribers(query = {}) {
         offset: (page - 1) * limit,
       }),
     ),
-    run(() => db.select({ n: count() }).from(newsletterSubscribers).where(where)),
+    run(() =>
+      db.select({ n: count() }).from(newsletterSubscribers).where(where),
+    ),
   ])
 
   const total = totals[0]?.n ?? 0
@@ -236,40 +249,42 @@ export async function listSubscribers(query = {}) {
 export async function newsletterStats() {
   const db = requireDb()
 
-  const [totalRows, activeRows, unsubscribedRows, sentRows, failedRows, recent] =
-    await Promise.all([
-      run(() => db.select({ n: count() }).from(newsletterSubscribers)),
-      run(() =>
-        db
-          .select({ n: count() })
-          .from(newsletterSubscribers)
-          .where(eq(newsletterSubscribers.status, "ACTIVE")),
-      ),
-      run(() =>
-        db
-          .select({ n: count() })
-          .from(newsletterSubscribers)
-          .where(eq(newsletterSubscribers.status, "UNSUBSCRIBED")),
-      ),
-      run(() =>
-        db
-          .select({ n: count() })
-          .from(emailDeliveries)
-          .where(eq(emailDeliveries.status, "SENT")),
-      ),
-      run(() =>
-        db
-          .select({ n: count() })
-          .from(emailDeliveries)
-          .where(eq(emailDeliveries.status, "FAILED")),
-      ),
-      run(() =>
-        db.query.newsletterSubscribers.findMany({
-          orderBy: desc(newsletterSubscribers.subscribedAt),
-          limit: 5,
-        }),
-      ),
-    ])
+  const [
+    totalRows,
+    activeRows,
+    unsubscribedRows,
+    sentRows,
+    failedRows,
+    recent,
+  ] = await Promise.all([
+    run(() => db.select({ n: count() }).from(newsletterSubscribers)),
+    run(() =>
+      db.select({ n: count() })
+        .from(newsletterSubscribers)
+        .where(eq(newsletterSubscribers.status, "ACTIVE")),
+    ),
+    run(() =>
+      db.select({ n: count() })
+        .from(newsletterSubscribers)
+        .where(eq(newsletterSubscribers.status, "UNSUBSCRIBED")),
+    ),
+    run(() =>
+      db.select({ n: count() })
+        .from(emailDeliveries)
+        .where(eq(emailDeliveries.status, "SENT")),
+    ),
+    run(() =>
+      db.select({ n: count() })
+        .from(emailDeliveries)
+        .where(eq(emailDeliveries.status, "FAILED")),
+    ),
+    run(() =>
+      db.query.newsletterSubscribers.findMany({
+        orderBy: desc(newsletterSubscribers.subscribedAt),
+        limit: 5,
+      }),
+    ),
+  ])
 
   return {
     subscribers: {
@@ -290,8 +305,7 @@ export async function newsletterStats() {
 export async function createCampaign(userId, input) {
   const db = requireDb()
   const [inserted] = await run(() =>
-    db
-      .insert(emailCampaigns)
+    db.insert(emailCampaigns)
       .values({
         name: input.name,
         subject: input.subject,
@@ -353,7 +367,11 @@ async function assertDraftCampaign(db, campaignId) {
  * Send a DRAFT campaign to an explicit admin-provided test list. Each send is
  * recorded in the delivery ledger (test deliveries have no unsubscribe link).
  */
-export async function sendTestCampaign(campaignId, testEmails, { baseUrl } = {}) {
+export async function sendTestCampaign(
+  campaignId,
+  testEmails,
+  { baseUrl } = {},
+) {
   const db = requireDb()
   const campaign = await assertDraftCampaign(db, campaignId)
   const siteUrl = baseUrl ?? ""
@@ -370,7 +388,14 @@ export async function sendTestCampaign(campaignId, testEmails, { baseUrl } = {})
       siteUrl,
     })
     results.push(
-      await sendEmail({ to: email, subject, html, text, kind: "CAMPAIGN", campaignId }),
+      await sendEmail({
+        to: email,
+        subject,
+        html,
+        text,
+        kind: "CAMPAIGN",
+        campaignId,
+      }),
     )
   }
 
@@ -386,7 +411,9 @@ async function mapLimit(items, limit, fn) {
       results[index] = await fn(items[index], index)
     }
   }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  )
   return results
 }
 
@@ -401,8 +428,7 @@ export async function sendCampaignToSubscribers(campaignId, { baseUrl } = {}) {
   const campaign = await assertDraftCampaign(db, campaignId)
 
   await run(() =>
-    db
-      .update(emailCampaigns)
+    db.update(emailCampaigns)
       .set({ status: "SENDING", updatedAt: new Date() })
       .where(eq(emailCampaigns.id, campaignId)),
   )
@@ -416,8 +442,7 @@ export async function sendCampaignToSubscribers(campaignId, { baseUrl } = {}) {
 
   if (active.length === 0) {
     await run(() =>
-      db
-        .update(emailCampaigns)
+      db.update(emailCampaigns)
         .set({ status: "SENT", sentAt: new Date(), updatedAt: new Date() })
         .where(eq(emailCampaigns.id, campaignId)),
     )
@@ -450,8 +475,7 @@ export async function sendCampaignToSubscribers(campaignId, { baseUrl } = {}) {
 
   const allFailed = sent === 0 && failed > 0
   await run(() =>
-    db
-      .update(emailCampaigns)
+    db.update(emailCampaigns)
       .set({
         status: allFailed ? "FAILED" : "SENT",
         failedReason: allFailed ? "Every recipient delivery failed" : null,
@@ -461,7 +485,12 @@ export async function sendCampaignToSubscribers(campaignId, { baseUrl } = {}) {
       .where(eq(emailCampaigns.id, campaignId)),
   )
 
-  return { sent, failed, total: active.length, status: allFailed ? "FAILED" : "SENT" }
+  return {
+    sent,
+    failed,
+    total: active.length,
+    status: allFailed ? "FAILED" : "SENT",
+  }
 }
 
 // ── Delivery history ───────────────────────────────────────────────────
@@ -474,7 +503,8 @@ export async function listDeliveries(query = {}) {
   const filters = []
   if (query.kind) filters.push(eq(emailDeliveries.kind, query.kind))
   if (query.status) filters.push(eq(emailDeliveries.status, query.status))
-  if (query.q) filters.push(ilike(emailDeliveries.recipientEmail, `%${query.q}%`))
+  if (query.q)
+    filters.push(ilike(emailDeliveries.recipientEmail, `%${query.q}%`))
   const where = filters.length ? and(...filters) : undefined
 
   const [rows, totals] = await Promise.all([

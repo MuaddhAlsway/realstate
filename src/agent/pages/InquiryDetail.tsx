@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import {
   agentApi,
+  type AgentEmail,
   type InquiryDetail,
   type InquiryMessage,
   type InquiryStatus,
 } from "../../services/inquiry"
 import { inquiryStatusLabel, inquiryStatusTone } from "../../services/inquiry"
-import { Badge, Button, EmptyState, Spinner, Textarea, formatDate, formatPrice } from "../../admin/ui"
+import { Badge, Button, EmptyState, Spinner, TextInput, Textarea, formatDate, formatPrice } from "../../admin/ui"
 import { useToast } from "../../admin/Toast"
 
 const ALLOWED: Record<InquiryStatus, InquiryStatus[]> = {
@@ -37,6 +38,11 @@ export default function AgentInquiryDetail() {
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
 
+  const [emails, setEmails] = useState<AgentEmail[]>([])
+  const [emailSubject, setEmailSubject] = useState("")
+  const [emailBody, setEmailBody] = useState("")
+  const [emailSending, setEmailSending] = useState(false)
+
   const [target, setTarget] = useState<InquiryStatus | "">("")
   const [note, setNote] = useState("")
   const [confirm, setConfirm] = useState(false)
@@ -62,6 +68,22 @@ export default function AgentInquiryDetail() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    let active = true
+    agentApi
+      .leadEmails(id)
+      .then((rows) => {
+        if (active) setEmails(rows)
+      })
+      .catch(() => {
+        if (active) setEmails([])
+      })
+    return () => {
+      active = false
+    }
   }, [id])
 
   const allowedOptions = useMemo(() => {
@@ -114,6 +136,24 @@ export default function AgentInquiryDetail() {
       toast(err instanceof Error ? err.message : "Could not update status", "error")
     } finally {
       setUpdating(false)
+    }
+  }
+
+  const sendEmail = async () => {
+    const subject = emailSubject.trim()
+    const body = emailBody.trim()
+    if (!subject || !body) return
+    setEmailSending(true)
+    try {
+      const sent = await agentApi.sendLeadEmail(id, { subject, body })
+      setEmails((current) => [sent, ...current])
+      setEmailSubject("")
+      setEmailBody("")
+      toast("Email sent to the client")
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Could not send email", "error")
+    } finally {
+      setEmailSending(false)
     }
   }
 
@@ -291,6 +331,63 @@ export default function AgentInquiryDetail() {
             ) : (
               <p className="text-xs font-light text-[#A09890]">Deleted property</p>
             )}
+          </div>
+
+          {/* Email client */}
+          <div className="p-6" style={{ backgroundColor: "#FFFFFF", border: "1px solid rgba(15,15,13,0.1)" }}>
+            <h2 className="text-[11px] tracking-[0.18em] uppercase font-light text-[#6B6560] mb-4">
+              Email client
+            </h2>
+            <p className="text-xs font-light text-[#A09890] mb-4">
+              Sent directly to {inquiry.customerEmail} — the address on the lead.
+            </p>
+            {inquiry.status === "CANCELLED" || inquiry.status === "COMPLETED" ? (
+              <p className="text-xs font-light text-[#6B6560]">
+                Emailing is closed for {inquiry.status.toLowerCase()} inquiries.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <TextInput
+                  value={emailSubject}
+                  onChange={setEmailSubject}
+                  placeholder="Subject"
+                />
+                <Textarea
+                  value={emailBody}
+                  onChange={setEmailBody}
+                  rows={3}
+                  placeholder="Write the client an email…"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    variant="dark"
+                    disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
+                    onClick={sendEmail}
+                  >
+                    Send email
+                  </Button>
+                </div>
+              </div>
+            )}
+            {emails.length > 0 ? (
+              <div className="mt-6 pt-4 border-t border-[#0F0F0D]/10 flex flex-col gap-3">
+                {emails.map((email) => (
+                  <div key={email.id}>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-light text-[#0F0F0D]">{email.subject}</p>
+                      <Badge tone={email.status === "FAILED" ? "red" : "green"}>
+                        {email.status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs font-light text-[#6B6560] mt-1">{email.body}</p>
+                    <p className="text-[11px] font-light text-[#A09890] mt-0.5">
+                      {timeLabel(email.createdAt ?? "")}
+                      {email.errorMessage ? ` · ${email.errorMessage}` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {/* Timeline */}

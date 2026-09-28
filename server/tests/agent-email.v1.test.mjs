@@ -42,11 +42,21 @@ async function createAgentFixture(email) {
   const password = "AgentPass-123"
   const inserted = await db
     .insert(users)
-    .values({ name: "Agent Fixture", email, passwordHash: await hashPassword(password), role: "AGENT" })
+    .values({
+      name: "Agent Fixture",
+      email,
+      passwordHash: await hashPassword(password),
+      role: "AGENT",
+    })
     .returning({ id: users.id })
   const agent = await db
     .insert(agents)
-    .values({ userId: inserted[0].id, name: "Agent Fixture", email: email.toLowerCase(), role: "Agent" })
+    .values({
+      userId: inserted[0].id,
+      name: "Agent Fixture",
+      email: email.toLowerCase(),
+      role: "Agent",
+    })
     .returning({ id: agents.id })
   const login = await request(app)
     .post(`${AUTH}/login`)
@@ -124,7 +134,10 @@ afterAll(async () => {
 
 describe("POST /api/v1/agent/inquiries/:id/email", () => {
   let lead
-  const messageBody = { subject: "Property details", body: "Here is the brochure." }
+  const messageBody = {
+    subject: "Property details",
+    body: "Here is the brochure.",
+  }
 
   beforeAll(async () => {
     lead = await createInquiry(propertyA.id)
@@ -161,8 +174,12 @@ describe("POST /api/v1/agent/inquiries/:id/email", () => {
     const ledger = await db
       .select()
       .from(emailDeliveries)
-      .where(eq(emailDeliveries.recipientEmail, lead.customerEmail.toLowerCase()))
-    expect(ledger.some((l) => l.kind === "AGENT" && l.status === "SENT")).toBe(true)
+      .where(
+        eq(emailDeliveries.recipientEmail, lead.customerEmail.toLowerCase()),
+      )
+    expect(ledger.some((l) => l.kind === "AGENT" && l.status === "SENT")).toBe(
+      true,
+    )
   })
 
   it("cannot forge a recipient — the body carries no address field", async () => {
@@ -210,7 +227,11 @@ describe("POST /api/v1/agent/inquiries/:id/email", () => {
   it("is unreachable for plain USER accounts", async () => {
     const member = await request(app)
       .post(`${AUTH}/register`)
-      .send({ name: "Plain Member", email: uniqueEmail("member"), password: "MemberPass-123" })
+      .send({
+        name: "Plain Member",
+        email: uniqueEmail("member"),
+        password: "MemberPass-123",
+      })
       .expect(201)
     const res = await request(app)
       .post(`${AGENT}/inquiries/${lead.id}/email`)

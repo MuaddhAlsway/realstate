@@ -120,7 +120,13 @@ function propertyColumns() {
 }
 
 const historyColumns = {
-  columns: { id: true, fromStatus: true, toStatus: true, note: true, createdAt: true },
+  columns: {
+    id: true,
+    fromStatus: true,
+    toStatus: true,
+    note: true,
+    createdAt: true,
+  },
   with: {
     changedBy: { columns: { id: true, name: true, role: true } },
   },
@@ -133,7 +139,13 @@ async function findInquiryById(db, id) {
       with: {
         property: propertyColumns(),
         agent: {
-          columns: { id: true, name: true, email: true, phone: true, imageUrl: true },
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            imageUrl: true,
+          },
         },
         user: { columns: { id: true, name: true, email: true } },
         conversation: {
@@ -227,8 +239,7 @@ export async function createInquiry(input, { userId, role } = {}) {
   let createdId
   await db.transaction(async (tx) => {
     const [inserted] = await run(() =>
-      tx
-        .insert(inquiries)
+      tx.insert(inquiries)
         .values({
           propertyId: property.id,
           agentId: property.agentId,
@@ -245,18 +256,14 @@ export async function createInquiry(input, { userId, role } = {}) {
     )
     createdId = inserted.id
 
+    await run(() => tx.insert(conversations).values({ inquiryId: createdId }))
     await run(() =>
-      tx.insert(conversations).values({ inquiryId: createdId }),
-    )
-    await run(() =>
-      tx
-        .insert(inquiryStatusHistory)
-        .values({
-          inquiryId: createdId,
-          fromStatus: null,
-          toStatus: "PENDING",
-          changedByUserId: userId ?? null,
-        }),
+      tx.insert(inquiryStatusHistory).values({
+        inquiryId: createdId,
+        fromStatus: null,
+        toStatus: "PENDING",
+        changedByUserId: userId ?? null,
+      }),
     )
 
     // Notify the assigned agent's account (when one exists).
@@ -300,7 +307,13 @@ export async function listMyInquiries(userId, role, query = {}) {
         with: {
           property: propertyColumns(),
           agent: {
-            columns: { id: true, name: true, email: true, phone: true, imageUrl: true },
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              imageUrl: true,
+            },
           },
           user: { columns: { id: true, name: true, email: true } },
         },
@@ -323,7 +336,11 @@ export async function getInquiry(id, userId, role) {
   const db = requireDb()
   const row = await findInquiryById(db, id)
   if (!row)
-    throw new HttpError("This inquiry does not exist", 404, ErrorCodes.INQUIRY_NOT_FOUND)
+    throw new HttpError(
+      "This inquiry does not exist",
+      404,
+      ErrorCodes.INQUIRY_NOT_FOUND,
+    )
   await assertAccess(db, row, userId, role)
   return row
 }
@@ -339,7 +356,11 @@ async function conversationFor(db, inquiryId, userId, role) {
     }),
   )
   if (!inquiry)
-    throw new HttpError("This inquiry does not exist", 404, ErrorCodes.INQUIRY_NOT_FOUND)
+    throw new HttpError(
+      "This inquiry does not exist",
+      404,
+      ErrorCodes.INQUIRY_NOT_FOUND,
+    )
   await assertAccess(db, inquiry, userId, role)
   if (!inquiry.conversation)
     throw new HttpError(
@@ -375,11 +396,11 @@ const ascMessageOrder = (msg) => [msg.createdAt]
 export async function sendMessage(inquiryId, userId, role, input) {
   const db = requireDb()
   const inquiry = await conversationFor(db, inquiryId, userId, role)
-  const senderRole = role === "ADMIN" ? "ADMIN" : role === "AGENT" ? "AGENT" : "CUSTOMER"
+  const senderRole =
+    role === "ADMIN" ? "ADMIN" : role === "AGENT" ? "AGENT" : "CUSTOMER"
 
   const message = await run(() =>
-    db
-      .insert(messages)
+    db.insert(messages)
       .values({
         conversationId: inquiry.conversation.id,
         senderId: userId,
@@ -416,7 +437,12 @@ export async function sendMessage(inquiryId, userId, role, input) {
 
 // ── Status workflow ─────────────────────────────────────────────────
 
-export async function updateInquiryStatus(id, userId, role, { toStatus, note, confirmTransaction }) {
+export async function updateInquiryStatus(
+  id,
+  userId,
+  role,
+  { toStatus, note, confirmTransaction },
+) {
   const db = requireDb()
   const row = await run(() =>
     db.query.inquiries.findFirst({
@@ -432,7 +458,11 @@ export async function updateInquiryStatus(id, userId, role, { toStatus, note, co
     }),
   )
   if (!row)
-    throw new HttpError("This inquiry does not exist", 404, ErrorCodes.INQUIRY_NOT_FOUND)
+    throw new HttpError(
+      "This inquiry does not exist",
+      404,
+      ErrorCodes.INQUIRY_NOT_FOUND,
+    )
 
   // A signed-in customer may only cancel their own PENDING inquiry.
   if (role !== "ADMIN" && role !== "AGENT") {
@@ -484,14 +514,11 @@ export async function updateInquiryStatus(id, userId, role, { toStatus, note, co
 
   await db.transaction(async (tx) => {
     await run(() =>
-      tx
-        .update(inquiries)
+      tx.update(inquiries)
         .set({
           status: toStatus,
-          completedAt:
-            toStatus === "COMPLETED" ? new Date() : null,
-          completedByUserId:
-            toStatus === "COMPLETED" ? userId : null,
+          completedAt: toStatus === "COMPLETED" ? new Date() : null,
+          completedByUserId: toStatus === "COMPLETED" ? userId : null,
           // COMPLETED is terminal, so clearing this on CANCELLED is safe.
           updatedAt: new Date(),
         })
@@ -508,8 +535,7 @@ export async function updateInquiryStatus(id, userId, role, { toStatus, note, co
     )
     if (nextPropertyStatus) {
       await run(() =>
-        tx
-          .update(properties)
+        tx.update(properties)
           .set({ status: nextPropertyStatus, updatedAt: new Date() })
           .where(eq(properties.id, row.propertyId)),
       )
@@ -570,8 +596,7 @@ export async function listNotifications(userId, query = {}) {
       }),
     ),
     run(() =>
-      db
-        .select({ n: count() })
+      db.select({ n: count() })
         .from(notifications)
         .where(eq(notifications.userId, userId)),
     ),
@@ -591,8 +616,7 @@ export async function markNotificationsRead(userId, { ids, all } = {}) {
   const db = requireDb()
   if (ids?.length) {
     await run(() =>
-      db
-        .update(notifications)
+      db.update(notifications)
         .set({ read: true })
         .where(
           and(
@@ -605,8 +629,7 @@ export async function markNotificationsRead(userId, { ids, all } = {}) {
     )
   } else if (all || (!ids && !all)) {
     await run(() =>
-      db
-        .update(notifications)
+      db.update(notifications)
         .set({ read: true })
         .where(
           and(eq(notifications.userId, userId), eq(notifications.read, false)),
@@ -622,32 +645,38 @@ export async function agentDashboard(userId) {
   const db = requireDb()
   const myAgentId = await resolveMyAgentId(db, userId)
   if (!myAgentId)
-    throw new HttpError("Your account has no agent profile", 403, ErrorCodes.FORBIDDEN)
+    throw new HttpError(
+      "Your account has no agent profile",
+      403,
+      ErrorCodes.FORBIDDEN,
+    )
 
   const countInquiries = (status) => () =>
     run(() =>
-      db
-        .select({ n: count() })
+      db.select({ n: count() })
         .from(inquiries)
         .where(
           status
-            ? and(eq(inquiries.agentId, myAgentId), eq(inquiries.status, status))
+            ? and(
+                eq(inquiries.agentId, myAgentId),
+                eq(inquiries.status, status),
+              )
             : eq(inquiries.agentId, myAgentId),
         ),
     )
   const countProperties = () =>
     run(() =>
-      db
-        .select({ n: count() })
+      db.select({ n: count() })
         .from(properties)
         .where(eq(properties.agentId, myAgentId)),
     )
   const unreadNotifications = () =>
     run(() =>
-      db
-        .select({ n: count() })
+      db.select({ n: count() })
         .from(notifications)
-        .where(and(eq(notifications.userId, userId), eq(notifications.read, false))),
+        .where(
+          and(eq(notifications.userId, userId), eq(notifications.read, false)),
+        ),
     )
 
   const [
@@ -703,7 +732,11 @@ export async function listAgentProperties(userId, query = {}) {
   const db = requireDb()
   const myAgentId = await resolveMyAgentId(db, userId)
   if (!myAgentId)
-    throw new HttpError("Your account has no agent profile", 403, ErrorCodes.FORBIDDEN)
+    throw new HttpError(
+      "Your account has no agent profile",
+      403,
+      ErrorCodes.FORBIDDEN,
+    )
 
   const page = query.page ?? 1
   const limit = query.limit ?? 20

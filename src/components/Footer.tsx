@@ -1,9 +1,34 @@
+import { useRef, useState } from "react"
 import { Link } from "react-router-dom"
+import { publicNewsletterApi } from "../services/newsletter"
 import { useSiteContent } from "../services/siteContent"
 
 export default function Footer() {
   const { content } = useSiteContent()
   const { footer } = content
+  const [email, setEmail] = useState("")
+  const [status, setStatus] = useState<"idle" | "busy" | "done" | "error">("idle")
+  const [feedback, setFeedback] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const subscribe = async () => {
+    const value = email.trim()
+    if (!value) {
+      inputRef.current?.focus()
+      return
+    }
+    setStatus("busy")
+    setFeedback("")
+    try {
+      await publicNewsletterApi.subscribe(value)
+      setStatus("done")
+      setFeedback("You're on the list — welcome.")
+      setEmail("")
+    } catch (err) {
+      setStatus("error")
+      setFeedback(err instanceof Error ? err.message : "Could not subscribe")
+    }
+  }
 
   return (
     <footer style={{ backgroundColor: "#0F0F0D", color: "#F5F0E8" }}>
@@ -113,19 +138,44 @@ export default function Footer() {
               style={{ borderColor: "rgba(245,240,232,0.2)" }}
             >
               <input
+                ref={inputRef}
                 type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (status === "done" || status === "error") {
+                    setStatus("idle")
+                    setFeedback("")
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    subscribe()
+                  }
+                }}
                 placeholder={footer.newsletterPlaceholder}
                 aria-label="Email address"
                 className="flex-1 bg-transparent text-sm font-light py-3 outline-none"
                 style={{ color: "#F5F0E8" }}
               />
               <button
-                className="text-[#C9A96E] text-xs tracking-[0.2em] uppercase py-3 pl-4 hover:text-[#F5F0E8] transition-colors"
+                onClick={subscribe}
+                disabled={status === "busy"}
+                className="text-[#C9A96E] text-xs tracking-[0.2em] uppercase py-3 pl-4 hover:text-[#F5F0E8] transition-colors disabled:opacity-50"
                 aria-label="Subscribe"
               >
                 →
               </button>
             </div>
+            {feedback ? (
+              <p
+                className="text-xs font-light mt-3"
+                style={{ color: status === "error" ? "#E29B85" : "#C9A96E" }}
+              >
+                {feedback}
+              </p>
+            ) : null}
           </div>
         </div>
 

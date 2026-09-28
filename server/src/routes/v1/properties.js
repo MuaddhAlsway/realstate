@@ -4,7 +4,11 @@ import {
   validatePatch,
   validateQuery,
 } from "../../middleware/validate.js"
-import { requireAuth, requireRole, optionalAuth } from "../../middleware/auth.js"
+import {
+  requireAuth,
+  requireRole,
+  optionalAuth,
+} from "../../middleware/auth.js"
 import { createRateLimiter } from "../../middleware/rateLimit.js"
 import {
   propertyIdSchema,

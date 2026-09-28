@@ -26,7 +26,11 @@ export const createInquiry = asyncHandler(async (req, res) => {
 
 export const listMyInquiries = asyncHandler(async (req, res) => {
   const { items, total, page, limit, totalPages } =
-    await inquiryService.listMyInquiries(req.user.id, req.user.role, req.parsedQuery)
+    await inquiryService.listMyInquiries(
+      req.user.id,
+      req.user.role,
+      req.parsedQuery,
+    )
   res.json({
     success: true,
     data: serializeInquiryListMany(items),

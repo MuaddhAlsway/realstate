@@ -45,7 +45,9 @@ describe("public agents directory", () => {
       expect(Object.prototype.hasOwnProperty.call(agent, "phone")).toBe(true)
       expect(Object.prototype.hasOwnProperty.call(agent, "email")).toBe(true)
       expect(Object.prototype.hasOwnProperty.call(agent, "imageUrl")).toBe(true)
-      expect(Object.prototype.hasOwnProperty.call(agent, "languages")).toBe(true)
+      expect(Object.prototype.hasOwnProperty.call(agent, "languages")).toBe(
+        true,
+      )
     }
   })
 })

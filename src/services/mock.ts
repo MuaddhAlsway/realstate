@@ -13,6 +13,7 @@ const LATENCY = 320
 interface StoredCollections {
   viewings: ViewingRequest[]
   contacts: ContactMessage[]
+  newsletter: { id: string, email: string, status: string, subscribedAt: string }
 }
 
 function readStore<T>(key: string, fallback: T): T {
@@ -35,7 +36,10 @@ function writeStore(key: string, value: unknown) {
 export function getStore(): StoredCollections {
   const viewings = readStore<ViewingRequest[]>("estate.viewings", [])
   const contacts = readStore<ContactMessage[]>("estate.contacts", [])
-  return { viewings, contacts }
+  const newsletter = readStore<
+    StoredCollections["newsletter"]
+  >("estate.newsletter", { id: "", email: "", status: "", subscribedAt: "" })
+  return { viewings, contacts, newsletter }
 }
 
 const delay = <T>(value: T): Promise<T> =>
@@ -122,6 +126,38 @@ export async function mockRequest(
   }
 
   // ── Auth (sample) ───────────────────────────────────────────
+  // ── Newsletter (sample) ───────────────────────────────────────────────
+  if (url.pathname === "/api/newsletter/subscribe" && method === "POST") {
+    const body = (options.body ?? {}) as { email?: string }
+    const email = String(body.email ?? "").trim().toLowerCase()
+    if (!email || !email.includes("@")) {
+      return Promise.reject(
+        Object.assign(new Error("Invalid email address"), {
+          status: 422,
+          code: "VALIDATION_ERROR",
+        }),
+      )
+    }
+    const existing = getStore().newsletter
+    if (existing.email === email && existing.status === "ACTIVE") {
+      return delay({ data: existing })
+    }
+    const next = {
+      id: `sub-${Date.now()}`,
+      email,
+      status: "ACTIVE",
+      subscribedAt: new Date().toISOString(),
+    }
+    writeStore("estate.newsletter", next)
+    return delay({ data: next })
+  }
+
+  if (url.pathname === "/api/newsletter/unsubscribe" && method === "GET") {
+    const existing = getStore().newsletter
+    writeStore("estate.newsletter", { ...existing, status: "UNSUBSCRIBED" })
+    return delay({ data: { ...existing, status: "UNSUBSCRIBED" } })
+  }
+
   if (url.pathname === "/api/auth/register" && method === "POST") {
     const body = (options.body ?? {}) as { name: string, email: string }
     const user: User = {

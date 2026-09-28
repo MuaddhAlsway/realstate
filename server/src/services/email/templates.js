@@ -17,7 +17,11 @@ function shell({ title, bodyHtml, unsubscribeUrl, baseUrl }) {
     : ""
   const footer = unsub
     ? `<p style="margin:0;color:#8a8378;font-size:12px;line-height:1.6;">
-         ${DISCLAIMER} · ${unsub}${baseUrl ? ` · <a href="${escapeHtml(baseUrl)}" style="color:#8a8378;">${escapeHtml(baseUrl)}</a>` : ""}
+         ${DISCLAIMER} · ${unsub}${
+           baseUrl
+             ? ` · <a href="${escapeHtml(baseUrl)}" style="color:#8a8378;">${escapeHtml(baseUrl)}</a>`
+             : ""
+         }
        </p>`
     : ""
   return `<!DOCTYPE html>
@@ -56,7 +60,9 @@ export function renderWelcome({ name, baseUrl, unsubscribeUrl, siteUrl }) {
     unsubscribeUrl,
     baseUrl: siteUrl,
   })
-  const text = `${heading}\n\nThank you for subscribing to the Estate newsletter. You will receive curated listings, market insights and exclusive previews.\n\n${unsubscribeUrl ? `Unsubscribe: ${unsubscribeUrl}` : ""}`
+  const text = `${heading}\n\nThank you for subscribing to the Estate newsletter. You will receive curated listings, market insights and exclusive previews.\n\n${
+    unsubscribeUrl ? `Unsubscribe: ${unsubscribeUrl}` : ""
+  }`
   return { subject: "Welcome to the Estate newsletter", html, text }
 }
 
@@ -104,6 +110,8 @@ export function renderAgentMessage({
   return {
     subject,
     html,
-    text: `Hello,\n\n${body}\n\n— ${agentName}, Estate${baseUrl ? `\n${baseUrl}` : ""}`,
+    text: `Hello,\n\n${body}\n\n— ${agentName}, Estate${
+      baseUrl ? `\n${baseUrl}` : ""
+    }`,
   }
 }

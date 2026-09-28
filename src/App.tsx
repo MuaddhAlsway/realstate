@@ -24,6 +24,10 @@ import AdminDeals from "./admin/pages/Deals"
 import Viewings from "./admin/pages/Viewings"
 import Agents from "./admin/pages/Agents"
 import Users from "./admin/pages/Users"
+import Newsletter from "./admin/pages/newsletter/Subscribers"
+import NewsletterCampaigns from "./admin/pages/newsletter/Campaigns"
+import NewsletterCompose from "./admin/pages/newsletter/Compose"
+import NewsletterHistory from "./admin/pages/newsletter/History"
 import Home from "./pages/Home"
 import PropertiesPage from "./pages/Properties"
 import PropertyDetail from "./pages/PropertyDetail"
@@ -121,6 +125,10 @@ function AdminRoutes() {
         <Route path="viewings" element={<Viewings />} />
         <Route path="agents" element={<Agents />} />
         <Route path="users" element={<Users />} />
+        <Route path="newsletter" element={<Newsletter />} />
+        <Route path="newsletter/campaigns" element={<NewsletterCampaigns />} />
+        <Route path="newsletter/compose" element={<NewsletterCompose />} />
+        <Route path="newsletter/history" element={<NewsletterHistory />} />
       </Route>
     </Routes>
   )

@@ -1,7 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import request from "supertest"
 import { randomUUID } from "node:crypto"
-import { app, cleanAuthUsers, getTestDb, bearer, adminToken } from "./helpers.mjs"
+import {
+  app,
+  cleanAuthUsers,
+  getTestDb,
+  bearer,
+  adminToken,
+} from "./helpers.mjs"
 
 /**
  * Phase 06 — /api/v1/favorites: the signed-in user's saved properties.

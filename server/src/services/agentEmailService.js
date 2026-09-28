@@ -65,12 +65,20 @@ function findInquiryForEmail(db, inquiryId) {
 
 async function assertAgentAccess(db, inquiry, userId, role) {
   if (!inquiry)
-    throw new HttpError("This inquiry does not exist", 404, ErrorCodes.INQUIRY_NOT_FOUND)
+    throw new HttpError(
+      "This inquiry does not exist",
+      404,
+      ErrorCodes.INQUIRY_NOT_FOUND,
+    )
   if (role === "ADMIN") return inquiry
   if (role === "AGENT") {
     const myAgentId = await resolveMyAgentId(db, userId)
     if (!myAgentId)
-      throw new HttpError("Your account has no agent profile", 403, ErrorCodes.FORBIDDEN)
+      throw new HttpError(
+        "Your account has no agent profile",
+        403,
+        ErrorCodes.FORBIDDEN,
+      )
     if (inquiry.agentId === myAgentId) return inquiry
   }
   throw new HttpError(
@@ -81,7 +89,13 @@ async function assertAgentAccess(db, inquiry, userId, role) {
 }
 
 /** Scope a lead down to the caller's inbox (mirrors conversationFor). */
-export async function sendAgentMessage({ inquiryId, userId, role, input, baseUrl }) {
+export async function sendAgentMessage({
+  inquiryId,
+  userId,
+  role,
+  input,
+  baseUrl,
+}) {
   const db = requireDb()
   const inquiry = await findInquiryForEmail(db, inquiryId)
   await assertAgentAccess(db, inquiry, userId, role)
@@ -106,8 +120,7 @@ export async function sendAgentMessage({ inquiryId, userId, role, input, baseUrl
   })
 
   const [saved] = await run(() =>
-    db
-      .insert(agentMessages)
+    db.insert(agentMessages)
       .values({
         agentId: inquiry.agentId,
         inquiryId: inquiry.id,
@@ -119,11 +132,16 @@ export async function sendAgentMessage({ inquiryId, userId, role, input, baseUrl
       .returning({ id: agentMessages.id }),
   )
 
-  const result = await sendEmail({ to: recipient, subject, html, text, kind: "AGENT" })
+  const result = await sendEmail({
+    to: recipient,
+    subject,
+    html,
+    text,
+    kind: "AGENT",
+  })
 
   await run(() =>
-    db
-      .update(agentMessages)
+    db.update(agentMessages)
       .set({
         status: result.status,
         providerMessageId: result.providerMessageId,

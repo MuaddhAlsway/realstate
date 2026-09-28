@@ -33,6 +33,8 @@ export function serializeCampaign(row) {
     id: row.id,
     name: row.name,
     subject: row.subject,
+    htmlContent: row.htmlContent,
+    textContent: row.textContent,
     status: row.status,
     createdBy: row.createdBy
       ? { id: row.createdBy.id, name: row.createdBy.name }

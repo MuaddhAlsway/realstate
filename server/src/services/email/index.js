@@ -71,8 +71,7 @@ export async function sendEmail({
   const db = requireDb()
 
   const [queued] = await run(() =>
-    db
-      .insert(emailDeliveries)
+    db.insert(emailDeliveries)
       .values({
         campaignId,
         kind,
@@ -98,8 +97,7 @@ export async function sendEmail({
   }
 
   await run(() =>
-    db
-      .update(emailDeliveries)
+    db.update(emailDeliveries)
       .set({
         status,
         providerMessageId,
@@ -110,6 +108,8 @@ export async function sendEmail({
   )
 
   return run(() =>
-    db.query.emailDeliveries.findFirst({ where: eq(emailDeliveries.id, queued.id) }),
+    db.query.emailDeliveries.findFirst({
+      where: eq(emailDeliveries.id, queued.id),
+    }),
   )
 }

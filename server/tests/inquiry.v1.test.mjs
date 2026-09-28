@@ -70,11 +70,21 @@ async function createAgentFixture(email) {
   const password = "AgentPass-123"
   const inserted = await db
     .insert(users)
-    .values({ name: "Agent Fixture", email, passwordHash: await hashPassword(password), role: "AGENT" })
+    .values({
+      name: "Agent Fixture",
+      email,
+      passwordHash: await hashPassword(password),
+      role: "AGENT",
+    })
     .returning({ id: users.id })
   const agent = await db
     .insert(agents)
-    .values({ userId: inserted[0].id, name: "Agent Fixture", email: email.toLowerCase(), role: "Agent" })
+    .values({
+      userId: inserted[0].id,
+      name: "Agent Fixture",
+      email: email.toLowerCase(),
+      role: "Agent",
+    })
     .returning({ id: agents.id })
   const login = await request(app)
     .post(`${AUTH}/login`)
@@ -184,7 +194,9 @@ describe("POST /api/v1/properties/:id/inquiries (public)", () => {
     expect(res.body.data.agent.id).toBe(agentA.id)
     expect(res.body.data.customerName).toBe("Guest Alpha")
     expect(Array.isArray(res.body.data.thread)).toBe(true)
-    expect(res.body.data.history.some((h) => h.toStatus === "PENDING")).toBe(true)
+    expect(res.body.data.history.some((h) => h.toStatus === "PENDING")).toBe(
+      true,
+    )
 
     const inbox = await request(app)
       .get(`${AGENT}/inquiries`)
@@ -286,7 +298,8 @@ describe("Authorization boundaries", () => {
         .status,
     ).toBe(403)
     expect(
-      (await request(app).get(`${ADMIN}/deals`).set(bearer(agentA.token))).status,
+      (await request(app).get(`${ADMIN}/deals`).set(bearer(agentA.token)))
+        .status,
     ).toBe(403)
   })
 })
@@ -396,9 +409,9 @@ describe("Inquiry conversation", () => {
       .get(`${AGENT}/notifications`)
       .set(bearer(agentA.token))
       .expect(200)
-    expect(
-      notifs.body.data.some((n) => n.type === "MESSAGE" && !n.read),
-    ).toBe(true)
+    expect(notifs.body.data.some((n) => n.type === "MESSAGE" && !n.read)).toBe(
+      true,
+    )
   })
 
   it("the agent's reply returns to the customer", async () => {

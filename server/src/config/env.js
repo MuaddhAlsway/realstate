@@ -85,10 +85,7 @@ export const SEED_ADMIN_PASSWORD =
   process.env.SEED_ADMIN_PASSWORD ||
   (IS_PRODUCTION ? undefined : "Estate-Dev-Admin-DevOnly!")
 
-if (
-  IS_PRODUCTION &&
-  (CORS_ORIGINS.length === 0 || CORS_ORIGINS[0] === "*")
-) {
+if (IS_PRODUCTION && (CORS_ORIGINS.length === 0 || CORS_ORIGINS[0] === "*")) {
   // eslint-disable-next-line no-console
   console.warn(
     "[env] CORS_ORIGINS is unset — accepting requests from any browser origin. " +
@@ -134,7 +131,9 @@ if (IS_PRODUCTION && !isDefined(process.env.UNSUBSCRIBE_SECRET)) {
 }
 
 if (IS_PRODUCTION && EMAIL_CONFIGURED && !isDefined(SMTP_HOST)) {
-  throw new Error("SMTP_HOST + SMTP_FROM_EMAIL must be set when EMAIL_PROVIDER=smtp")
+  throw new Error(
+    "SMTP_HOST + SMTP_FROM_EMAIL must be set when EMAIL_PROVIDER=smtp",
+  )
 }
 if (IS_PRODUCTION && EMAIL_LOG_TRANSPORT) {
   // eslint-disable-next-line no-console

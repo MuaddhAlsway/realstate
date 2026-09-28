@@ -14,11 +14,15 @@ import {
   adminUsersQuerySchema,
 } from "../../schemas/admin.js"
 import { viewingQuerySchema } from "../../schemas/viewing.js"
-import { inquiryQuerySchema, createAdminAgentSchema } from "../../schemas/inquiry.js"
+import {
+  inquiryQuerySchema,
+  createAdminAgentSchema,
+} from "../../schemas/inquiry.js"
 import {
   campaignCreateSchema,
   campaignIdParamSchema,
   campaignTestSchema,
+  emailDeliveryQuerySchema,
   newsletterSubscriberQuerySchema,
 } from "../../schemas/newsletter.js"
 import * as adminController from "../../controllers/v1/admin.js"
@@ -80,7 +84,11 @@ router.patch(
   validatePatch(updateAdminAgentSchema),
   adminController.updateAgent,
 )
-router.post("/agents", validate(createAdminAgentSchema), adminController.createAgent)
+router.post(
+  "/agents",
+  validate(createAdminAgentSchema),
+  adminController.createAgent,
+)
 
 router.get(
   "/inquiries",
@@ -146,7 +154,7 @@ router.post(
 
 router.get(
   "/newsletter/history",
-  validateQuery(newsletterSubscriberQuerySchema),
+  validateQuery(emailDeliveryQuerySchema),
   newsletterController.listDeliveries,
 )
 

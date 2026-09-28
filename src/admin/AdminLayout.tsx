@@ -13,6 +13,10 @@ const NAV_ITEMS = [
   { to: "/admin/viewings", label: "Viewings" },
   { to: "/admin/agents", label: "Agents" },
   { to: "/admin/users", label: "Users" },
+  { to: "/admin/newsletter", label: "Newsletter", end: true },
+  { to: "/admin/newsletter/campaigns", label: "Campaigns" },
+  { to: "/admin/newsletter/compose", label: "Compose Email" },
+  { to: "/admin/newsletter/history", label: "Email History" },
 ]
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {

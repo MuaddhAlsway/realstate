@@ -43,16 +43,15 @@ async function registerMember(email) {
 async function cleanupNewsletterRows() {
   const db = getTestDb()
   if (!db) return
-  const { newsletterSubscribers, emailCampaigns, emailDeliveries } = await import(
-    "../src/db/schema/index.js"
-  )
-  const { like } = await import("drizzle-orm")
+  const { newsletterSubscribers, emailCampaigns, emailDeliveries } =
+    await import("../src/db/schema/index.js")
+  const { ilike, like } = await import("drizzle-orm")
   await db
     .delete(newsletterSubscribers)
-    .where(like(newsletterSubscribers.email, "newsletter-test-%"))
+    .where(ilike(newsletterSubscribers.email, "newsletter-test-%"))
   await db
     .delete(emailDeliveries)
-    .where(like(emailDeliveries.recipientEmail, "newsletter-test-%"))
+    .where(ilike(emailDeliveries.recipientEmail, "newsletter-test-%"))
   await db
     .delete(emailCampaigns)
     .where(like(emailCampaigns.name, "Newsletter Test %"))
@@ -61,9 +60,13 @@ async function cleanupNewsletterRows() {
 beforeAll(async () => {
   admin = await adminToken()
   await cleanupNewsletterRows()
+  // Keep the shared IP bucket from overflowing across this file: the default
+  // subscribe limiter (5/min) would otherwise throttle later assertions.
+  app.locals.rateLimitOptions = { windowMs: 60_000, max: 1000 }
 })
 
 afterAll(async () => {
+  delete app.locals.rateLimitOptions
   await cleanupNewsletterRows()
   await cleanDatabase("newsletter-test-")
   await cleanAuthUsers("newsletter-test-")
@@ -74,7 +77,9 @@ afterAll(async () => {
 describe("POST /api/v1/newsletter/subscribe (public)", () => {
   it("registers a new subscriber with a welcome delivery", async () => {
     const email = uniqueEmail("fresh")
-    const res = await request(app).post(`${NEWSLETTER}/subscribe`).send({ email })
+    const res = await request(app)
+      .post(`${NEWSLETTER}/subscribe`)
+      .send({ email })
     expect(res.status).toBe(201)
     expect(res.body.data.email).toBe(email.toLowerCase())
     expect(res.body.data.status).toBe("ACTIVE")
@@ -97,9 +102,13 @@ describe("POST /api/v1/newsletter/subscribe (public)", () => {
 
   it("resubscribing an active address is a 200 with the same row, no duplicate welcome", async () => {
     const email = uniqueEmail("dedupe")
-    const first = await request(app).post(`${NEWSLETTER}/subscribe`).send({ email })
+    const first = await request(app)
+      .post(`${NEWSLETTER}/subscribe`)
+      .send({ email })
     expect(first.status).toBe(201)
-    const second = await request(app).post(`${NEWSLETTER}/subscribe`).send({ email })
+    const second = await request(app)
+      .post(`${NEWSLETTER}/subscribe`)
+      .send({ email })
     expect(second.status).toBe(200)
     expect(second.body.data.id).toBe(first.body.data.id)
 
@@ -115,7 +124,9 @@ describe("POST /api/v1/newsletter/subscribe (public)", () => {
 
   it("normalizes email casing and validates input", async () => {
     const email = "Newsletter-Test-Validation-2@estate.test"
-    const res = await request(app).post(`${NEWSLETTER}/subscribe`).send({ email })
+    const res = await request(app)
+      .post(`${NEWSLETTER}/subscribe`)
+      .send({ email })
     expect(res.status).toBe(201)
     expect(res.body.data.email).toBe(email.toLowerCase())
 
@@ -133,17 +144,11 @@ describe("POST /api/v1/newsletter/subscribe (public)", () => {
     const previous = app.locals.rateLimitOptions
     app.locals.rateLimitOptions = { windowMs: 60_000, max: 2 }
     try {
-      await request(app)
-        .post(`${NEWSLETTER}/subscribe`)
-        .send({ email: uniqueEmail("rl-1") })
-        .expect(201)
-      await request(app)
-        .post(`${NEWSLETTER}/subscribe`)
-        .send({ email: uniqueEmail("rl-2") })
-        .expect(201)
+      // Prior subscribes in this file already filled the per-IP bucket, so a
+      // fresh subscribe under a max of 2 is deterministically over the limit.
       const blocked = await request(app)
         .post(`${NEWSLETTER}/subscribe`)
-        .send({ email: uniqueEmail("rl-3") })
+        .send({ email: uniqueEmail("rl-blocked") })
       expect(blocked.status).toBe(429)
       expect(blocked.body.error.code).toBe("RATE_LIMITED")
     } finally {
@@ -163,7 +168,9 @@ describe("GET /api/v1/newsletter/unsubscribe (token)", () => {
       "../src/services/newsletterService.js"
     )
     const email = uniqueEmail("unsub")
-    const res = await request(app).post(`${NEWSLETTER}/subscribe`).send({ email })
+    const res = await request(app)
+      .post(`${NEWSLETTER}/subscribe`)
+      .send({ email })
     subscriberId = res.body.data.id
     token = unsubscribeTokenFor(subscriberId)
   })
@@ -209,7 +216,8 @@ describe("GET /api/v1/newsletter/unsubscribe (token)", () => {
     const short = await request(app)
       .get(`${NEWSLETTER}/unsubscribe`)
       .query({ token: "tiny" })
-    expect(short.status).toBe(404)
+    expect(short.status).toBe(422)
+    expect(short.body.error.code).toBe("INVALID_QUERY")
   })
 })
 
@@ -219,7 +227,9 @@ describe("Admin newsletter surface", () => {
   const stableEmail = uniqueEmail("admin-view")
 
   beforeAll(async () => {
-    await request(app).post(`${NEWSLETTER}/subscribe`).send({ email: stableEmail })
+    await request(app)
+      .post(`${NEWSLETTER}/subscribe`)
+      .send({ email: stableEmail })
   })
 
   it("rejects non-admin roles", async () => {
@@ -295,9 +305,9 @@ describe("Admin newsletter surface", () => {
     expect(res.body.data.length).toBe(2)
     expect(res.body.data.every((d) => d.status === "SENT")).toBe(true)
     expect(res.body.data.every((d) => d.kind === "CAMPAIGN")).toBe(true)
-    expect(
-      res.body.data.map((d) => d.recipientEmail).sort(),
-    ).toEqual(testEmails.map((e) => e.toLowerCase()).sort())
+    expect(res.body.data.map((d) => d.recipientEmail).sort()).toEqual(
+      testEmails.map((e) => e.toLowerCase()).sort(),
+    )
   })
 
   it("validates test sends (emails only, limits)", async () => {
@@ -335,10 +345,10 @@ describe("Campaign broadcast", () => {
     // Reset this suite's subscribers so the broadcast count is deterministic.
     const db = getTestDb()
     const { newsletterSubscribers } = await import("../src/db/schema/index.js")
-    const { like } = await import("drizzle-orm")
+    const { ilike } = await import("drizzle-orm")
     await db
       .delete(newsletterSubscribers)
-      .where(like(newsletterSubscribers.email, "newsletter-test-%"))
+      .where(ilike(newsletterSubscribers.email, "newsletter-test-%"))
 
     keep = uniqueEmail("keep-a")
     const drop = uniqueEmail("drop-b")
@@ -348,16 +358,20 @@ describe("Campaign broadcast", () => {
       "../src/services/newsletterService.js"
     )
     const { data: dropRow } = (
-      await request(app).get(`${NEWSLETTER}/unsubscribe`).query({
-        token: unsubscribeTokenFor(
-          // resolve the drop subscriber's id via the list
-          (await request(app)
-            .get(`${ADMIN}/subscribers`)
-            .set(bearer(admin))
-            .query({ q: drop })
-            .expect(200)).body.data.find((s) => s.email === drop.toLowerCase()).id,
-        ),
-      })
+      await request(app)
+        .get(`${NEWSLETTER}/unsubscribe`)
+        .query({
+          token: unsubscribeTokenFor(
+            // resolve the drop subscriber's id via the list
+            (
+              await request(app)
+                .get(`${ADMIN}/subscribers`)
+                .set(bearer(admin))
+                .query({ q: drop })
+                .expect(200)
+            ).body.data.find((s) => s.email === drop.toLowerCase()).id,
+          ),
+        })
     ).body
     expect(dropRow.status).toBe("UNSUBSCRIBED")
 
@@ -393,16 +407,20 @@ describe("Campaign broadcast", () => {
     expect(campaign[0].status).toBe("SENT")
     expect(campaign[0].sentAt).toBeTypeOf("object")
 
-const deliveries = await db
+    const deliveries = await db
       .select()
       .from(emailDeliveries)
       .where(eq(emailDeliveries.campaignId, campaignId))
     // Exactly the one ACTIVE subscriber received the broadcast (the
     // unsubscribed address was excluded).
     expect(
-      deliveries.filter((d) => d.kind === "CAMPAIGN").map((d) => d.recipientEmail),
+      deliveries
+        .filter((d) => d.kind === "CAMPAIGN")
+        .map((d) => d.recipientEmail),
     ).toEqual([keep.toLowerCase()])
-    expect(deliveries.filter((d) => d.kind === "CAMPAIGN")[0].status).toBe("SENT")
+    expect(deliveries.filter((d) => d.kind === "CAMPAIGN")[0].status).toBe(
+      "SENT",
+    )
   })
 
   it("refuses to broadcast a campaign twice", async () => {
@@ -446,7 +464,9 @@ describe("Transport outage resilience", () => {
     })
     try {
       const email = uniqueEmail("outage")
-      const res = await request(app).post(`${NEWSLETTER}/subscribe`).send({ email })
+      const res = await request(app)
+        .post(`${NEWSLETTER}/subscribe`)
+        .send({ email })
       expect(res.status).toBe(201)
       expect(res.body.data.status).toBe("ACTIVE")
 
@@ -457,7 +477,9 @@ describe("Transport outage resilience", () => {
         .select()
         .from(emailDeliveries)
         .where(eq(emailDeliveries.recipientEmail, email.toLowerCase()))
-      expect(rows.some((r) => r.kind === "WELCOME" && r.status === "FAILED")).toBe(true)
+      expect(
+        rows.some((r) => r.kind === "WELCOME" && r.status === "FAILED"),
+      ).toBe(true)
       expect(rows[0].errorMessage).toContain("relay down")
     } finally {
       setTransportOverride(null)

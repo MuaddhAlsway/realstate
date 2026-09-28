@@ -114,6 +114,20 @@ export interface DealItem {
   completedBy?: { id: string, name: string, role: string } | null
 }
 
+export interface AgentEmail {
+  id: string
+  leadId: string | null
+  agentId: string | null
+  recipientEmail: string
+  subject: string
+  body: string
+  status: "SENT" | "FAILED"
+  errorMessage: string | null
+  providerMessageId: string | null
+  sentAt: string | null
+  createdAt: string | null
+}
+
 export interface Paginated<T> {
   items: T[]
   total: number
@@ -225,6 +239,17 @@ export const agentApi = {
     http.patch<InquiryDetail>(
       `${ROOT}/agent/inquiries/${encodeURIComponent(id)}/status`,
       body,
+    ),
+
+  sendLeadEmail: (id: string, body: { subject: string, body: string }): Promise<AgentEmail> =>
+    http.post<AgentEmail>(
+      `${ROOT}/agent/inquiries/${encodeURIComponent(id)}/email`,
+      body,
+    ),
+
+  leadEmails: (id: string): Promise<AgentEmail[]> =>
+    http.get<AgentEmail[]>(
+      `${ROOT}/agent/inquiries/${encodeURIComponent(id)}/emails`,
     ),
 
   notifications: async (params?: { page?: number }): Promise<Paginated<NotificationItem>> =>

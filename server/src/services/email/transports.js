@@ -91,7 +91,9 @@ function openSocket() {
     : createConnection({ host: SMTP_HOST, port: SMTP_PORT })
   return new Promise((resolve, reject) => {
     socket.once("error", reject)
-    socket.once("connect", () => resolve({ socket, readLine: makeLineReader(socket, bufferRef) }))
+    socket.once("connect", () =>
+      resolve({ socket, readLine: makeLineReader(socket, bufferRef) }),
+    )
   })
 }
 
@@ -100,7 +102,9 @@ function upgradeToTls(socket, readLine) {
     const bufferRef = { value: "" }
     const tls = tlsConnect({ socket, servername: SMTP_HOST })
     tls.once("error", reject)
-    tls.once("secureConnect", () => resolve({ socket: tls, readLine: makeLineReader(tls, bufferRef) }))
+    tls.once("secureConnect", () =>
+      resolve({ socket: tls, readLine: makeLineReader(tls, bufferRef) }),
+    )
     void readLine // previous reader is dropped with the cleartext socket
   })
 }
@@ -148,7 +152,9 @@ export async function smtpTransport(payload) {
     }
 
     if (SMTP_USER && SMTP_PASS) {
-      socket.write(`AUTH PLAIN ${Buffer.from(`\0${SMTP_USER}\0${SMTP_PASS}`).toString("base64")}\r\n`)
+      socket.write(
+        `AUTH PLAIN ${Buffer.from(`\0${SMTP_USER}\0${SMTP_PASS}`).toString("base64")}\r\n`,
+      )
       await expectCode(await readLine(), [235], "auth")
     }
 
