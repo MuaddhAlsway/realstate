@@ -8,6 +8,7 @@ import meRouter from "./me.js"
 import agentRouter from "./agent.js"
 import adminRouter from "./admin.js"
 import contentRouter from "./content.js"
+import newsletterRouter from "./newsletter.js"
 
 const router = Router()
 
@@ -20,5 +21,6 @@ router.use("/me", meRouter)
 router.use("/agent", agentRouter)
 router.use("/admin", adminRouter)
 router.use("/content", contentRouter)
+router.use("/newsletter", newsletterRouter)
 
 export default router

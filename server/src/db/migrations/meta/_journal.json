@@ -22,6 +22,13 @@
       "when": 1790526485204,
       "tag": "0002_great_deathbird",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790539758873,
+      "tag": "0003_classy_dreaming_celestial",
+      "breakpoints": true
     }
   ]
 }

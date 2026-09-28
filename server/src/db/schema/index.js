@@ -74,6 +74,27 @@ export const messageSenderEnum = pgEnum("message_sender", [
   "ADMIN",
   "SYSTEM",
 ])
+// Phase 10 — newsletter + transactional email
+export const subscriberStatusEnum = pgEnum("subscriber_status", [
+  "ACTIVE",
+  "UNSUBSCRIBED",
+])
+export const emailCampaignStatusEnum = pgEnum("email_campaign_status", [
+  "DRAFT",
+  "SENDING",
+  "SENT",
+  "FAILED",
+])
+export const emailDeliveryStatusEnum = pgEnum("email_delivery_status", [
+  "QUEUED",
+  "SENT",
+  "FAILED",
+])
+export const emailDeliveryKindEnum = pgEnum("email_delivery_kind", [
+  "WELCOME",
+  "CAMPAIGN",
+  "AGENT",
+])
 
 // ── users ────────────────────────────────────────────────────────────────
 export const users = pgTable(
@@ -482,6 +503,134 @@ export const inquiryStatusHistory = pgTable(
   (t) => [index("inquiry_history_inquiry_idx").on(t.inquiryId)],
 )
 
+// ── newsletter_subscribers (Phase 10: public email list) ─────────────
+// A confirmed opt-in list. The unsubscribe token is stored as a SHA-256
+// hash (mirroring refresh_tokens) so the emailed link can never recover a
+// database-writeable secret. Status FLOW: ACTIVE → UNSUBSCRIBED (terminal).
+export const newsletterSubscribers = pgTable(
+  "newsletter_subscribers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    status: subscriberStatusEnum("status").notNull().default("ACTIVE"),
+    // SHA-256 of the raw unsubscribe token — never the token itself.
+    unsubscribeTokenHash: text("unsubscribe_token_hash").notNull(),
+    subscribedAt: timestamp("subscribed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("newsletter_subscribers_email_key").on(t.email),
+    uniqueIndex("newsletter_subscribers_unsubscribe_token_hash_key").on(
+      t.unsubscribeTokenHash,
+    ),
+    index("newsletter_subscribers_status_idx").on(t.status),
+  ],
+)
+
+// ── email_campaigns (Phase 10: admin newsletter broadcasts) ───────────
+// DRAFT → SENDING → SENT (or FAILED). "Sending" never blocks on the mail
+// transport: recipients are queued as email_deliveries rows first, so a
+// provider outage cannot lose subscriptions or campaigns.
+export const emailCampaigns = pgTable(
+  "email_campaigns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    subject: text("subject").notNull(),
+    htmlContent: text("html_content").notNull(),
+    textContent: text("text_content").notNull(),
+    status: emailCampaignStatusEnum("status").notNull().default("DRAFT"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    failedReason: text("failed_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("email_campaigns_status_idx").on(t.status),
+    index("email_campaigns_created_idx").on(t.createdAt),
+  ],
+)
+
+// ── email_deliveries (Phase 10: per-recipient delivery ledger) ────────
+// One row per attempted send, covering every kind (welcome opt-in email,
+// campaign broadcast, agent→client message). QUEUED → SENT/FAILED keeps the
+// DB authoritative while the transport does the actual delivery; failed rows
+// keep the error message for the admin history view.
+export const emailDeliveries = pgTable(
+  "email_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id").references(() => emailCampaigns.id, {
+      onDelete: "set null",
+    }),
+    kind: emailDeliveryKindEnum("kind").notNull(),
+    recipientEmail: text("recipient_email").notNull(),
+    subject: text("subject"),
+    status: emailDeliveryStatusEnum("status").notNull().default("QUEUED"),
+    providerMessageId: text("provider_message_id"),
+    errorMessage: text("error_message"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("email_deliveries_campaign_idx").on(t.campaignId),
+    index("email_deliveries_status_idx").on(t.status),
+    index("email_deliveries_created_idx").on(t.createdAt),
+  ],
+)
+
+// ── agent_messages (Phase 10: agent → client email history) ───────────
+// Audit log of every email an agent sends from a lead. The recipient is
+// always the inquiry's customer contact — never a client-supplied address —
+// and the row is scoped to agentId + inquiryId so cross-agent reads fail.
+export const agentMessages = pgTable(
+  "agent_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id").references(() => agents.id, {
+      onDelete: "set null",
+    }),
+    inquiryId: uuid("inquiry_id").references(() => inquiries.id, {
+      onDelete: "cascade",
+    }),
+    recipientEmail: text("recipient_email").notNull(),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    status: emailDeliveryStatusEnum("status").notNull().default("SENT"),
+    providerMessageId: text("provider_message_id"),
+    errorMessage: text("error_message"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("agent_messages_agent_idx").on(t.agentId),
+    index("agent_messages_inquiry_idx").on(t.inquiryId),
+    index("agent_messages_created_idx").on(t.createdAt),
+  ],
+)
+
 // ── Relations (for joins + drizzle query builders in later phases) ──────
 export const usersRelations = relations(users, ({ many, one }) => ({
   favorites: many(favorites),
@@ -492,6 +641,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   notifications: many(notifications),
   statusChanges: many(inquiryStatusHistory),
   completedInquiries: many(inquiries, { relationName: "inquiries_completed_by" }),
+  createdCampaigns: many(emailCampaigns, { relationName: "campaigns_created_by" }),
   agent: one(agents, { fields: [users.id], references: [agents.userId] }),
 }))
 
@@ -503,6 +653,7 @@ export const agentsRelations = relations(agents, ({ many, one }) => ({
   properties: many(properties),
   viewingRequests: many(viewingRequests),
   inquiries: many(inquiries),
+  emails: many(agentMessages),
 }))
 
 export const neighborhoodsRelations = relations(neighborhoods, ({ many }) => ({
@@ -603,6 +754,7 @@ export const inquiriesRelations = relations(inquiries, ({ many, one }) => ({
     references: [conversations.inquiryId],
   }),
   history: many(inquiryStatusHistory),
+  emails: many(agentMessages),
 }))
 
 export const conversationsRelations = relations(
@@ -652,3 +804,30 @@ export const inquiryStatusHistoryRelations = relations(
     }),
   }),
 )
+
+export const emailCampaignsRelations = relations(emailCampaigns, ({ many, one }) => ({
+  createdBy: one(users, {
+    fields: [emailCampaigns.createdByUserId],
+    references: [users.id],
+    relationName: "campaigns_created_by",
+  }),
+  deliveries: many(emailDeliveries),
+}))
+
+export const emailDeliveriesRelations = relations(emailDeliveries, ({ one }) => ({
+  campaign: one(emailCampaigns, {
+    fields: [emailDeliveries.campaignId],
+    references: [emailCampaigns.id],
+  }),
+}))
+
+export const agentMessagesRelations = relations(agentMessages, ({ one }) => ({
+  agent: one(agents, {
+    fields: [agentMessages.agentId],
+    references: [agents.id],
+  }),
+  inquiry: one(inquiries, {
+    fields: [agentMessages.inquiryId],
+    references: [inquiries.id],
+  }),
+}))

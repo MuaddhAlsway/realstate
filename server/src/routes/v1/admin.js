@@ -15,8 +15,15 @@ import {
 } from "../../schemas/admin.js"
 import { viewingQuerySchema } from "../../schemas/viewing.js"
 import { inquiryQuerySchema, createAdminAgentSchema } from "../../schemas/inquiry.js"
+import {
+  campaignCreateSchema,
+  campaignIdParamSchema,
+  campaignTestSchema,
+  newsletterSubscriberQuerySchema,
+} from "../../schemas/newsletter.js"
 import * as adminController from "../../controllers/v1/admin.js"
 import * as mediaController from "../../controllers/v1/media.js"
+import * as newsletterController from "../../controllers/v1/newsletter.js"
 import { createRateLimiter } from "../../middleware/rateLimit.js"
 
 /**
@@ -99,6 +106,48 @@ router.put(
   "/content/:section",
   validate(contentSectionParamSchema, "params"),
   adminController.replaceContent,
+)
+
+// ── Phase 10 — newsletter administration ──────────────────────────────
+// Inherits the ADMIN gate above. Campaign sends are bounded by a dedicated
+// limiter so one account can't hammer the relay/delivery ledger.
+const campaignLimiter = createRateLimiter({ max: 30, windowMs: 60 * 1000 })
+
+router.get(
+  "/newsletter/subscribers",
+  validateQuery(newsletterSubscriberQuerySchema),
+  newsletterController.listSubscribers,
+)
+router.get("/newsletter/stats", newsletterController.stats)
+
+router.get(
+  "/newsletter/campaigns",
+  validateQuery(newsletterSubscriberQuerySchema),
+  newsletterController.listCampaigns,
+)
+router.post(
+  "/newsletter/campaigns",
+  validate(campaignCreateSchema),
+  newsletterController.createCampaign,
+)
+router.post(
+  "/newsletter/campaigns/:id/send-test",
+  campaignLimiter,
+  validate(campaignIdParamSchema, "params"),
+  validate(campaignTestSchema),
+  newsletterController.sendTestCampaign,
+)
+router.post(
+  "/newsletter/campaigns/:id/send",
+  campaignLimiter,
+  validate(campaignIdParamSchema, "params"),
+  newsletterController.sendCampaign,
+)
+
+router.get(
+  "/newsletter/history",
+  validateQuery(newsletterSubscriberQuerySchema),
+  newsletterController.listDeliveries,
 )
 
 export default router

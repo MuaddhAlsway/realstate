@@ -1,5 +1,7 @@
 import { asyncHandler } from "../../middleware/error.js"
 import * as inquiryService from "../../services/inquiryService.js"
+import * as agentEmailService from "../../services/agentEmailService.js"
+import { baseUrlFromRequest } from "../../services/email/index.js"
 import { serializePropertyList } from "../../serializers/properties.js"
 import {
   serializeAgentDashboard,
@@ -8,6 +10,10 @@ import {
   serializeMessage,
   serializeNotificationList,
 } from "../../serializers/inquiries.js"
+import {
+  serializeAgentEmail,
+  serializeAgentEmailList,
+} from "../../serializers/newsletter.js"
 
 /**
  * Agent-portal controllers (Phase 11). Every route is AGENT|ADMIN-gated at
@@ -96,4 +102,27 @@ export const markNotificationsRead = asyncHandler(async (req, res) => {
     data: serializeNotificationList(items),
     meta: { page: 1, limit, total, totalPages },
   })
+})
+
+// ── Phase 10 — agent → client email ────────────────────────────────────
+
+export const sendLeadEmail = asyncHandler(async (req, res) => {
+  const baseUrl = baseUrlFromRequest(req)
+  const message = await agentEmailService.sendAgentMessage({
+    inquiryId: req.params.id,
+    userId: req.user.id,
+    role: req.user.role,
+    input: req.body,
+    baseUrl,
+  })
+  res.status(201).json({ success: true, data: serializeAgentEmail(message) })
+})
+
+export const listLeadEmails = asyncHandler(async (req, res) => {
+  const emails = await agentEmailService.listAgentEmails({
+    inquiryId: req.params.id,
+    userId: req.user.id,
+    role: req.user.role,
+  })
+  res.json({ success: true, data: serializeAgentEmailList(emails) })
 })

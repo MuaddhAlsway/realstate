@@ -55,6 +55,13 @@ export function translateDatabaseError(err) {
           ErrorCodes.EMAIL_CONFLICT,
         )
       }
+      if (constraint === "newsletter_subscribers_email_key") {
+        return new HttpError(
+          "This email is already subscribed",
+          409,
+          ErrorCodes.NEWSLETTER_SUBSCRIBER_EXISTS,
+        )
+      }
       return new HttpError(
         "A unique value was already taken",
         422,

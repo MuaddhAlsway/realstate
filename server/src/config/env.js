@@ -95,3 +95,52 @@ if (
       "Set CORS_ORIGINS to a comma-separated origin list to restrict access.",
   )
 }
+
+// Phase 10 — transactional + campaign email delivery.
+//
+// Provider is pluggable: `log` (default) writes a printable receipt to the
+// stdout and never touches the network — used in development and tests so
+// the whole pipeline (journals, deliveries, failure recording) can be
+// exercised without SMTP credentials. `smtp` talks SMTP over node:net/tls
+// (STARTTLS or implicit TLS via SMTP_SECURE) and is the production transport.
+//
+// Credentials are server-side only: they are read here and are never exposed
+// to the browser. Production boots with `log` only after a loud warning — a
+// free tier Render instance has no persistent outbound mail guarantee, but
+// the delivery ledger still records every attempt honestly.
+export const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || "log"
+export const SMTP_HOST = process.env.SMTP_HOST
+export const SMTP_PORT = Number(process.env.SMTP_PORT || 587)
+export const SMTP_USER = process.env.SMTP_USER
+export const SMTP_PASS = process.env.SMTP_PASS
+export const SMTP_SECURE =
+  String(process.env.SMTP_SECURE || "").toLowerCase() === "true"
+export const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL
+export const SMTP_FROM_NAME = process.env.SMTP_FROM_NAME
+
+// Outward-facing base URL used to build links inside emails (unsubscribe,
+// site). Falls back to the request origin when a request is available.
+export const EMAIL_BASE_URL = process.env.EMAIL_BASE_URL
+
+export const EMAIL_LOG_TRANSPORT = EMAIL_PROVIDER === "log"
+export const EMAIL_CONFIGURED = EMAIL_PROVIDER === "smtp"
+
+// HMAC key for deterministic unsubscribe tokens (see newsletterService).
+// Production refuses to boot without it; dev/test use a stable fixture.
+export const UNSUBSCRIBE_SECRET =
+  process.env.UNSUBSCRIBE_SECRET || "estate-dev-unsubscribe-secret"
+if (IS_PRODUCTION && !isDefined(process.env.UNSUBSCRIBE_SECRET)) {
+  throw new Error("UNSUBSCRIBE_SECRET must be set in production")
+}
+
+if (IS_PRODUCTION && EMAIL_CONFIGURED && !isDefined(SMTP_HOST)) {
+  throw new Error("SMTP_HOST + SMTP_FROM_EMAIL must be set when EMAIL_PROVIDER=smtp")
+}
+if (IS_PRODUCTION && EMAIL_LOG_TRANSPORT) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[env] EMAIL_PROVIDER is unset (log transport) — campaign/agent emails will " +
+      "be recorded in the delivery ledger but not delivered. Set EMAIL_PROVIDER=smtp " +
+      "plus SMTP_HOST/SMTP_FROM_EMAIL to enable real delivery.",
+  )
+}

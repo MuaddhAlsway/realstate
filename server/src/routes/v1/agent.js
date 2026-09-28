@@ -11,6 +11,7 @@ import {
   notificationQuerySchema,
   markNotificationsReadSchema,
 } from "../../schemas/inquiry.js"
+import { agentMessageSchema } from "../../schemas/newsletter.js"
 import * as agentController from "../../controllers/v1/agent.js"
 
 /**
@@ -59,6 +60,18 @@ router.patch(
   validate(inquiryIdParamSchema, "params"),
   validate(inquiryStatusUpdateSchema),
   agentController.updateStatus,
+)
+router.post(
+  "/inquiries/:id/email",
+  messageLimiter,
+  validate(inquiryIdParamSchema, "params"),
+  validate(agentMessageSchema),
+  agentController.sendLeadEmail,
+)
+router.get(
+  "/inquiries/:id/emails",
+  validate(inquiryIdParamSchema, "params"),
+  agentController.listLeadEmails,
 )
 
 router.get(
