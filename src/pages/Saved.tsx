@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { useFavorites } from "../context/FavoritesContext"
-import { properties, type Property } from "../data/properties"
+import { useProperties } from "../hooks/useProperties"
+import type { Property } from "../data/properties"
 import { api } from "../services/api"
 import { REMOTE } from "../services/http"
 import { PropertyCard } from "../components/property/PropertyCard"
@@ -11,6 +12,9 @@ export default function Saved() {
   const ref = useReveal<HTMLDivElement>()
   const { favorites, clearFavorites } = useFavorites()
   const [liveSaved, setLiveSaved] = useState<Property[] | null>(null)
+  // Resolves favorite ids from the same namespace that produced them — the
+  // slug-keyed dataset can never match a live UUID.
+  const { properties } = useProperties()
 
   useEffect(() => {
     if (!REMOTE) return

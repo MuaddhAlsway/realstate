@@ -2,7 +2,8 @@ import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { useFavorites } from "../context/FavoritesContext"
-import { properties, type ViewingRequest } from "../data/properties"
+import { useProperties } from "../hooks/useProperties"
+import type { ViewingRequest } from "../data/properties"
 import { api } from "../services/api"
 import { REMOTE } from "../services/http"
 import { getStore } from "../services/mock"
@@ -32,6 +33,10 @@ export default function Dashboard() {
   const [viewings, setViewings] = useState<ViewingRequest[]>([])
   const [inquiries, setInquiries] = useState<InquiryListItem[]>([])
   const [inquiriesLoaded, setInquiriesLoaded] = useState(false)
+  // Resolves a viewing's `propertyId` against the same list that produced it.
+  // Previously this matched against the slug-keyed design dataset, so every
+  // live viewing (UUID) resolved to undefined and fell back to "Property".
+  const { properties } = useProperties()
 
   useEffect(() => {
     if (!user) {

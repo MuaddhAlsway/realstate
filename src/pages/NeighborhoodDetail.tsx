@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { Link, useParams } from "react-router-dom"
-import { neighborhoods, properties as allProperties } from "../data/properties"
+import { neighborhoods } from "../data/properties"
+import { useProperties } from "../hooks/useProperties"
 import { applyPropertyFilters } from "../utils/properties"
 import { PropertyCard } from "../components/property/PropertyCard"
 import { useReveal } from "../hooks/useReveal"
@@ -12,6 +13,9 @@ export default function NeighborhoodDetail() {
     () => neighborhoods.find((n) => n.id === id),
     [id],
   )
+  // Live list — never the slug-keyed design dataset, or these cards would
+  // favorite/inquire with `p1` instead of a UUID.
+  const { properties: allProperties } = useProperties()
   const properties = useMemo(
     () =>
       neighborhood
@@ -19,7 +23,7 @@ export default function NeighborhoodDetail() {
             neighborhood: neighborhood.name,
           })
         : [],
-    [neighborhood],
+    [allProperties, neighborhood],
   )
 
   if (!neighborhood) {

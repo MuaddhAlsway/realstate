@@ -5,13 +5,14 @@ import { gsap } from "../animations/gsap"
 import { EASE } from "../animations/easings"
 import { useReveal } from "../hooks/useReveal"
 import { useReducedMotion } from "../hooks/useReducedMotion"
+import { useProperties } from "../hooks/useProperties"
 import { useFavorites } from "../context/FavoritesContext"
 import { Counter } from "../components/motion/Counter"
 import { TextReveal } from "../components/motion/TextReveal"
 import { Magnetic } from "../components/motion/Magnetic"
 import { PropertyCard } from "../components/property/PropertyCard"
 import {
-  properties,
+  properties as staticProperties,
   neighborhoods,
   agents,
   type Property,
@@ -20,8 +21,10 @@ import { applyPropertyFilters, type PropertyQuery } from "../utils/properties"
 import { useSiteContent } from "../services/siteContent"
 import { mediaUrl } from "../services/media"
 
+// Decorative imagery for the pinned "Flagship" chapter sequence. Purely
+// presentational — it is never linked or submitted, so slug ids are safe here.
 const FLAGSHIP: Property =
-  properties.find((p) => p.listingType === "buy") ?? properties[0]
+  staticProperties.find((p) => p.listingType === "buy") ?? staticProperties[0]
 
 /* ───────────────────────────── 01 · HERO ───────────────────────────── */
 
@@ -279,7 +282,7 @@ function Hero() {
 
 /* ──────────────────────── 02 · SELECTED RESIDENCES ──────────────────── */
 
-function FeaturedSection() {
+function FeaturedSection({ properties }: { properties: Property[] }) {
   const ref = useReveal<HTMLElement>()
   const { content } = useSiteContent()
   const home = content.home
@@ -430,7 +433,7 @@ function FeaturedSection() {
 
 /* ───────────────────────── 03 · HORIZONTAL EXPLORATION ──────────────── */
 
-function HorizontalShowcase() {
+function HorizontalShowcase({ properties }: { properties: Property[] }) {
   const sectionRef = useRef<HTMLElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const rowRef = useRef<HTMLDivElement>(null)
@@ -905,7 +908,7 @@ function FilteredResults({ results }: { results: Property[] }) {
   )
 }
 
-function DiscoverySection() {
+function DiscoverySection({ properties }: { properties: Property[] }) {
   const sectionRef = useRef<HTMLElement>(null)
   const { content } = useSiteContent()
   const home = content.home
@@ -1583,13 +1586,19 @@ function CtaSection() {
 /* ─────────────────────────────── PAGE ─────────────────────────────── */
 
 export default function Home() {
+  // Single fetch: every property surface below renders from this list. There
+  // is deliberately NO static fallback — slug-keyed design-dataset rows must
+  // never render next to a working favorite button, or the heart would post
+  // `p1` to the UUID-only favorites endpoint.
+  const { properties } = useProperties()
+
   return (
     <div>
       <Hero />
-      <FeaturedSection />
-      <HorizontalShowcase />
+      <FeaturedSection properties={properties} />
+      <HorizontalShowcase properties={properties} />
       <FlagshipStory />
-      <DiscoverySection />
+      <DiscoverySection properties={properties} />
       <StatsSection />
       <NeighborhoodsSection />
       <WhyUsSection />

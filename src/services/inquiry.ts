@@ -166,13 +166,32 @@ async function envelope<T>(path: string): Promise<Paginated<T>> {
 
 const ROOT = "/api/v1"
 
+/**
+ * The live API keys properties by UUID; the bundled design dataset keys them
+ * by slug (`p1`, …). Fail fast and readably instead of letting a slug reach
+ * `POST /properties/:id/inquiries` and come back as a 422 UUID error.
+ */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export const inquiryApi = {
   // ── Public property inquiry ──────────────────────────────────────────
-  create: (propertyId: string, body: CreateInquiryBody): Promise<InquiryDetail> =>
-    http.post<InquiryDetail>(
+  create: (propertyId: string, body: CreateInquiryBody): Promise<InquiryDetail> => {
+    if (!UUID_RE.test(propertyId)) {
+      return Promise.reject(
+        Object.assign(
+          new Error(
+            "Cannot send this inquiry: the listing is not available on the live server.",
+          ),
+          { status: 422, code: "VALIDATION_ERROR" },
+        ),
+      )
+    }
+    return http.post<InquiryDetail>(
       `${ROOT}/properties/${encodeURIComponent(propertyId)}/inquiries`,
       body,
-    ),
+    )
+  },
 
   // ── Customer /me surface ─────────────────────────────────────────────
   myInquiries: async (params?: { status?: InquiryStatus, page?: number }): Promise<Paginated<InquiryListItem>> =>

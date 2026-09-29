@@ -7,7 +7,7 @@ import type {
 } from "../data/properties"
 import { agents } from "../data/properties"
 import type { PropertyQuery } from "../utils/properties"
-import { http, API_BASE } from "./http"
+import { http, API_BASE, REMOTE } from "./http"
 import {
   mapAgent,
   mapProperty,
@@ -42,6 +42,34 @@ export type CreateViewingBody = {
 }
 
 const ROOT = API_BASE ? "/api/v1" : "/api"
+
+/**
+ * The live API keys properties by UUID (`properties.id`); the bundled
+ * design dataset keys them by short slug (`p1`, `p2`, …). Any request that
+ * takes a property id must therefore be given a real UUID — a slug would be
+ * rejected with `422 propertyId: must be a valid UUID`.
+ *
+ * This guards the call sites so a stray design-dataset id fails fast with a
+ * readable message instead of a confusing server validation error.
+ */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function isRemoteId(id: string | null | undefined): boolean {
+  return typeof id === "string" && UUID_RE.test(id)
+}
+
+function requireRemoteId(id: string, action: string): string {
+  if (!isRemoteId(id)) {
+    throw Object.assign(
+      new Error(
+        `Cannot ${action}: this listing is not available on the live server.`,
+      ),
+      { status: 422, code: "VALIDATION_ERROR" },
+    )
+  }
+  return id
+}
 
 function toQuery(query: PropertyQuery): string {
   const params = new URLSearchParams()
@@ -132,10 +160,14 @@ export const api = {
   },
 
   addFavorite: (id: string) =>
-    http.put<unknown>(`${ROOT}/favorites/${encodeURIComponent(id)}`),
+    http.put<unknown>(
+      `${ROOT}/favorites/${encodeURIComponent(requireRemoteId(id, "save this property"))}`,
+    ),
 
   removeFavorite: (id: string) =>
-    http.delete<unknown>(`${ROOT}/favorites/${encodeURIComponent(id)}`),
+    http.delete<unknown>(
+      `${ROOT}/favorites/${encodeURIComponent(requireRemoteId(id, "unsave this property"))}`,
+    ),
 
   fetchViewings: async (): Promise<ViewingRequest[]> => {
     const data = await http.get<unknown[]>(`${ROOT}/viewings`)
@@ -143,7 +175,12 @@ export const api = {
   },
 
   createViewing: (body: CreateViewingBody) =>
-    http.post<unknown>(`${ROOT}/viewings`, body),
+    http.post<unknown>(`${ROOT}/viewings`, {
+      ...body,
+      propertyId: REMOTE
+        ? requireRemoteId(body.propertyId, "request a viewing")
+        : body.propertyId,
+    }),
 
   createContact: (body: {
     name: string

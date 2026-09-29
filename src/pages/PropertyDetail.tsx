@@ -26,46 +26,58 @@ export default function PropertyDetail() {
   const { isFavorite, toggleFavorite } = useFavorites()
   const { user } = useAuth()
 
+  // The static painting is a slug-keyed preview fallback only. It must never
+  // stand in for a live id: submitting a viewing/inquiry or a favorite with
+  // `p1` is rejected by the API as a malformed UUID.
   const staticProperty = useMemo(
-    () => properties.find((p) => p.id === id) ?? properties[0],
+    () => (REMOTE ? undefined : properties.find((p) => p.id === id)),
     [id],
   )
   const [detail, setDetail] = useState<{
     property: Property
     agent: Agent | null
   } | null>(null)
+  const [notFound, setNotFound] = useState(false)
   const property = detail?.property ?? staticProperty
   const agent = detail?.agent ?? null
 
-  const whatsappLink = agent?.phone
-    ? createWhatsAppLink(
-        agent.phone,
-        `Hello, I'm interested in ${property.name}. Could you please provide me with more information about this property?`,
-      )
-    : null
+  const whatsappLink =
+    agent?.phone && property
+      ? createWhatsAppLink(
+          agent.phone,
+          `Hello, I'm interested in ${property.name}. Could you please provide me with more information about this property?`,
+        )
+      : null
 
-  const gmailLink = agent?.email
-    ? createGmailComposeLink({
-        to: agent.email,
-        subject: `Property Inquiry — ${property.name}`,
-        message: `Hello ${agent.name},
+  const gmailLink =
+    agent?.email && property
+      ? createGmailComposeLink({
+          to: agent.email,
+          subject: `Property Inquiry — ${property.name}`,
+          message: `Hello ${agent.name},
 
 I'm interested in ${property.name} and would like to get more information about this property.
 
 Thank you.`,
-      })
-    : null
+        })
+      : null
 
   useEffect(() => {
     if (!id) return
     let cancelled = false
+    setDetail(null)
+    setNotFound(false)
     api
       .fetchProperty(id)
       .then((result) => {
         if (!cancelled) setDetail(result)
       })
-      .catch(() => {
-        /* keep the static painting */
+      .catch((err: { status?: number }) => {
+        // A 404/422 here means the id does not exist server-side. Anything
+        // else is transient — keep the page usable rather than blanking it.
+        if (!cancelled && (err?.status === 404 || err?.status === 422)) {
+          setNotFound(true)
+        }
       })
     return () => {
       cancelled = true
@@ -74,16 +86,24 @@ Thank you.`,
 
   const related = useMemo(
     () =>
-      properties
-        .filter(
-          (p) =>
-            p.id !== property.id && p.neighborhood === property.neighborhood,
-        )
-        .slice(0, 3),
+      property
+        ? properties
+            .filter(
+              (p) =>
+                p.id !== property.id &&
+                p.neighborhood === property.neighborhood,
+            )
+            .slice(0, 3)
+        : [],
     [property],
   )
 
-  const imgs = property.images.length > 0 ? property.images : [property.image]
+  const imgs =
+    property && property.images.length > 0
+      ? property.images
+      : property
+        ? [property.image]
+        : []
   const [activeImg, setActiveImg] = useState(0)
   const [lightbox, setLightbox] = useState(false)
   const [form, setForm] = useState({
@@ -149,7 +169,7 @@ Thank you.`,
   }, [lightbox, imgs.length])
 
   const monthlyPayment = useMemo(() => {
-    if (property.listingType !== "buy") return null
+    if (!property || property.listingType !== "buy") return null
     const principal = property.priceNum
     const rate = mortgage.rate / 100 / 12
     const n = mortgage.years * 12
@@ -159,7 +179,10 @@ Thank you.`,
     )
   }, [property, mortgage])
 
-  const saved = isFavorite(property.id)
+  const saved = property ? isFavorite(property.id) : false
+
+  // Captured before the not-found early return narrows `property` away.
+  const propertyId = property?.id ?? ""
 
   const handleViewing = async (e: FormEvent) => {
     e.preventDefault()
@@ -168,14 +191,14 @@ Thank you.`,
     try {
       if (REMOTE) {
         await api.createViewing({
-          propertyId: property.id,
+          propertyId,
           date: form.date,
           time: form.time || undefined,
           message: form.message || undefined,
         })
       } else {
         await api.createViewing({
-          propertyId: property.id,
+          propertyId,
           name: form.name,
           email: form.email,
           phone: form.phone,
@@ -202,8 +225,9 @@ Thank you.`,
     }
   }
 
-  const statusLabel =
-    property.status === "available"
+  const statusLabel = !property
+    ? ""
+    : property.status === "available"
       ? "Available"
       : property.status === "new"
         ? "New"
@@ -214,7 +238,7 @@ Thank you.`,
     setInqStatus("sending")
     setInqError(null)
     try {
-      const detail = await inquiryApi.create(property.id, {
+      const detail = await inquiryApi.create(propertyId, {
         name: inqForm.name,
         email: inqForm.email,
         ...(inqForm.phone ? { phone: inqForm.phone } : {}),
@@ -233,6 +257,35 @@ Thank you.`,
           : "Could not send your inquiry. Please try again.",
       )
     }
+  }
+
+  // The live API rejected this id, or the preview has no matching listing.
+  // Rendering a different property here would post its id on submit.
+  if (!property) {
+    return (
+      <div
+        style={{
+          backgroundColor: "#F5F0E8",
+          minHeight: "80vh",
+          paddingTop: "180px",
+        }}
+        className="max-w-[1440px] mx-auto px-6 lg:px-16 text-center"
+      >
+        <h1 className="text-heading-xl mb-6">
+          {notFound ? "Property not found" : "Property unavailable"}
+        </h1>
+        <p
+          className="text-sm font-light mb-10 max-w-md mx-auto"
+          style={{ color: "#6B6560" }}
+        >
+          This listing may have been sold or removed. Browse the current
+          catalog to find a residence.
+        </p>
+        <Link to="/properties" className="btn-primary">
+          Browse Properties
+        </Link>
+      </div>
+    )
   }
 
   return (
