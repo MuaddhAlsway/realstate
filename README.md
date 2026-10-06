@@ -1,10 +1,16 @@
 # 🏛️ Estate — Luxury Real Estate Platform
-
+<img
+    src="https://raw.githubusercontent.com/MuaddhAlsway/readmePic/main/RealState.png"
+    width="100%"
+    alt="Estate Full-Stack Real Estate Platform"
+  />
 > **A production-oriented full-stack real-estate marketplace built for Jeddah, Saudi Arabia 🇸🇦**
 >
 > Estate combines a modern React experience, secure Express REST API, PostgreSQL on Neon, role-based Admin and Agent portals, Cloudinary media management, and a complete newsletter/email delivery system.
 
 Built and prototyped with **Figma Make**, deployed on **Render**, and powered by **Neon PostgreSQL**.
+
+
 
 ---
 
